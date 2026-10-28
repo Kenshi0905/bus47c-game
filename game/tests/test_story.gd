@@ -13,7 +13,7 @@ func _initialize() -> void:
 	assert(s.interact("clock"))
 	assert(not s.tick(25.0))
 	assert(s.tick(1.1))
-	assert(s.interact("passenger"))
+	assert(s.depart_stop(), "First passenger must not require looking back")
 	assert(not s.interact("passenger"))
 	assert(s.tick(30.1))
 	assert(not s.interact("route"))

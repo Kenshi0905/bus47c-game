@@ -1,7 +1,7 @@
 extends Node3D
 const Route = preload("res://scripts/route.gd")
 ## Editable, seeded forest. Each 50 m roadside chunk shares instanced meshes.
-const CHUNKS := 19
+const CHUNKS := 23
 const TREES_PER_SIDE := 140
 const SHRUBS_PER_SIDE := 160
 const GRASS_PER_SIDE := 210
@@ -17,7 +17,7 @@ func _ready() -> void:
 	for chunk in range(CHUNKS):
 		for side in [-1, 1]:
 			var transforms: Array = [[], [], [], []]
-			var center_z := -825.0 + chunk * 50.0
+			var center_z := -1025.0 + chunk * 50.0
 			for kind in range(3):
 				var count: int = [TREES_PER_SIDE, SHRUBS_PER_SIDE, GRASS_PER_SIDE][kind]
 				for i in range(count):
@@ -39,13 +39,19 @@ func _ready() -> void:
 
 func in_clearing(x: float, z: float) -> bool:
 	if z< -120 and z> -690 and absf(x)<11:return true
-	# Lantern path, fruit clearing and shortcut.
-	if z< -670 and z> -760 and x>3 and x<75:
-		for line in [[Vector2(4,-683),Vector2(20,-694)],[Vector2(20,-694),Vector2(36,-704)],[Vector2(20,-694),Vector2(65,-745)]]:
-			if Geometry2D.get_closest_point_to_segment(Vector2(x,z),line[0],line[1]).distance_to(Vector2(x,z))<3.8:return true
+	# Clear the actual world-space footpath and small, separate fruit patches.
+	if z< -660 and z> -765:
+		var world := Route.point(x,0,z)
+		var at := Vector2(world.x,world.z)
+		var path: Array=[Route.point(4,0,-683)]
+		path.append_array(Route.WALK_PATH)
+		for i in range(path.size()-1):
+			if Geometry2D.get_closest_point_to_segment(at,Vector2(path[i].x,path[i].z),Vector2(path[i+1].x,path[i+1].z)).distance_to(at)<3.8:return true
+		for fruit in Route.FRUIT_SITES:
+			if world.distance_to(fruit)<2.1:return true
 	# Preserve the shelter, boarding approach, stop signs and watcher sightlines.
 	if x > 2.5 and x < 12 and z > -16 and z < 12: return true
-	for stop_z in [-133.0, -273.0, -413.0, -553.0, -713.0]:
+	for stop_z in [-133.0, -273.0, -413.0, -553.0, Route.TERMINUS_Z-3]:
 		if x > 2.5 and x < 10.5 and absf(z - stop_z) < 8: return true
 		if x < -4 and x > -9 and absf(z - stop_z + 2) < 3: return true
 	# Narrow gaps reveal the distant watcher between trunks rather than at the curb.
@@ -60,7 +66,7 @@ func add_mist() -> void:
 	var material := ShaderMaterial.new()
 	material.shader = preload("res://assets/ui/ground_mist.gdshader")
 	mesh.material = material
-	for z in range(-830, 100, 14):
+	for z in range(-1040, 100, 14):
 		for side in [-1, 1]:
 			for layer in range(2):
 				var mist := MeshInstance3D.new()

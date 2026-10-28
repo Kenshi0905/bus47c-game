@@ -42,6 +42,11 @@ var held_blade: Node3D
 var double_model: Node3D
 var intruder_model: Node3D
 var trail_audio: AudioStreamPlayer3D
+var ground_knife: Node3D
+var attack_ready_time := 0.0
+var look_back_armed := false
+var look_back_origin := Vector3.ZERO
+var scare_limbs: Array[Node3D]=[]
 
 func point(x: float, z: float) -> Vector3:
 	return Route.point(x,0,z)
@@ -58,6 +63,8 @@ func setup(owner_game) -> void:
 	pursuer=load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
 	add_child(pursuer)
 	game.add_tie_glow(pursuer)
+	game.light(pursuer,Vector3(0,1.8,-1),Color("b7aaa0"),.9,3)
+	scare_limbs=game.passengers.rig_limbs(pursuer)
 	trail_audio=AudioStreamPlayer3D.new()
 	pursuer.add_child(trail_audio)
 	trail_audio.stream=preload("res://assets/audio/pursuit.wav")
@@ -90,24 +97,33 @@ func lantern(parent: Node3D, at: Vector3, warm: bool=true) -> void:
 	game.light(parent,at+Vector3(0,1.1,0),Color("b7a46f" if warm else "87a9a2"),.65,5)
 
 func build_forest() -> void:
-	var route: Array[Vector3]=[point(4,-683),point(20,-694),point(36,-704)]
-	for i in range(route.size()-1):
-		slab(props,route[i],route[i+1],2.2,"383f32")
-		for t in [.1,.55,.95]:lantern(props,route[i].lerp(route[i+1],t)+Vector3(0,0,1.8))
-	var fork := point(20,-694)
-	game.block(props,fork+Vector3(0,1,0),Vector3(.12,2,.12),"65583e",true)
-	game.block(props,fork+Vector3(0,1.9,0),Vector3(2.5,.65,.1),"9e7f39")
-	var sign: Label3D=game.text3(props,"PATH TO LOOMESVILLE\nKEEP TO THE LANTERNS",fork+Vector3(0,1.9,.065),24,Color("eed593"))
-	sign.pixel_size=.003
-	hotspot("shortcut",props,fork+Vector3(0,1.5,0),"Take the walking path",3.3)
+	var fork := Route.FOREST_FORK
+	slab(props,point(4,-683),fork,2.2,"383f32")
+	# A shoulder-mounted sign faces people approaching from the broken bus.
+	var signpost := Node3D.new()
+	props.add_child(signpost)
+	signpost.position=fork+Vector3(2.6,0,2.6)
+	signpost.rotation.y=-PI/4
+	game.block(signpost,Vector3(0,.86,0),Vector3(.1,1.72,.1),"65583e",true)
+	game.block(signpost,Vector3(0,1.65,0),Vector3(1.8,.48,.12),"827044")
+	for side in [-1,1]:
+		var direction := "←  LOOMESVILLE" if side>0 else "LOOMESVILLE  →"
+		var sign: Label3D=game.text3(signpost,direction+"\nFOOTPATH",Vector3(0,1.65,side*.068),26,Color("eed593"))
+		sign.pixel_size=.0038
+		if side<0:sign.rotation.y=PI
+	lantern(props,signpost.position+Vector3(1,0,.5))
+	hotspot("shortcut",signpost,Vector3(0,1.5,0),"Take the walking path",3.5)
 	hotspot("take_bus",game.bus,Vector3(.3,1.65,-3),"Continue to Loomesville by bus",2.7)
-	var end := point(65,-745)
-	slab(props,fork,end,2.4,"4e4936")
-	for i in range(1,10):lantern(props,fork.lerp(end,float(i)/10)+Vector3(1.7,0,0))
+	for i in range(Route.WALK_PATH.size()-1):
+		var a: Vector3=Route.WALK_PATH[i]
+		var b: Vector3=Route.WALK_PATH[i+1]
+		slab(props,a,b,2.4,"4e4936")
+		var side: Vector3=(b-a).normalized().cross(Vector3.UP)*1.8
+		for t in [.2,.65]:lantern(props,a.lerp(b,t)+side)
 	for i in range(3):
 		var root := Node3D.new()
 		props.add_child(root)
-		root.position=point(35+i*1.6,-704-i*.6)
+		root.position=Route.FRUIT_SITES[i]
 		game.block(root,Vector3(0,.45,0),Vector3(.1,.9,.1),"4b4b38")
 		var bush := MeshInstance3D.new()
 		var shape := SphereMesh.new()
@@ -134,14 +150,13 @@ func build_forest() -> void:
 			fruit.position=Vector3((j%2)*.5-.25,.8+(j/2)*.2,.55)
 		fruit_nodes.append(berries)
 		hotspot("fruit"+str(i),root,Vector3(0,1,.4),"Gather fruit",2.6)
-	lantern(props,point(34,-701))
 	var ticket: MeshInstance3D=game.block(props,Vector3(5.35,.77,-.45),Vector3(.3,.018,.18),"d7bf7c")
 	hotspot("ticket",ticket,Vector3(0,.1,0),"Read the ticket")
 
 func build_town() -> void:
 	game.block(town,Vector3(120,.015,-754),Vector3(9,.03,76),"303432")
 	for x in [114.5,125.5]:
-		game.block(town,Vector3(x,.08,-754),Vector3(2,.16,76),"565b51",true)
+		game.block(town,Vector3(x,.025,-754),Vector3(2,.05,76),"565b51",true)
 		for z in [-735,-754,-774]:lantern(town,Vector3(x,0,z))
 	for side in [-1,1]:
 		for z in [-740,-758]:
@@ -177,8 +192,18 @@ func build_town() -> void:
 	game.light(home,Vector3(0,2.8,1),Color("c9ac7b"),.65,8)
 	game.block(home,Vector3(-2.6,.9,2),Vector3(2.5,.15,1),"665940",true)
 	for x in [-3.6,-1.6]:game.block(home,Vector3(x,.45,2),Vector3(.12,.9,.7),"4d493b",true)
-	game.block(home,Vector3(-2.7,1.02,2),Vector3(.08,.04,.5),"9ca99e")
-	hotspot("knife",home,Vector3(-2.7,1.1,2),"Take the kitchen knife")
+	# The knife is reachable at the doorway, before the attacker starts moving.
+	game.block(home,Vector3(-2.35,.82,3.9),Vector3(2.2,.12,.65),"665940",true)
+	for x in [-3.3,-1.4]:game.block(home,Vector3(x,.4,3.9),Vector3(.1,.8,.5),"4d493b",true)
+	ground_knife=Node3D.new()
+	home.add_child(ground_knife)
+	ground_knife.position=Vector3(-1.6,.915,3.9)
+	ground_knife.rotation.y=-.4
+	game.block(ground_knife,Vector3(0,0,-.12),Vector3(.1,.035,.42),"c6cfc3")
+	game.block(ground_knife,Vector3(0,0,.17),Vector3(.075,.055,.18),"382e26")
+	game.block(ground_knife,Vector3(0,0,.065),Vector3(.16,.06,.035),"8d998c")
+	game.light(home,Vector3(-1.6,1.9,4),Color("c7b383"),.6,3.2)
+	hotspot("knife",home,Vector3(-1.6,.98,3.9),"Pick up the knife",3.2)
 	game.block(home,Vector3(0,.55,-1.5),Vector3(.8,.15,.8),"60533f",true)
 	game.block(home,Vector3(0,1.03,-1.85),Vector3(.8,1,.12),"60533f",true)
 	opponent=Node3D.new()
@@ -256,7 +281,10 @@ func build_town() -> void:
 	lantern(town,escape)
 	game.text3(town,"FORESTRY WAY",escape+Vector3(0,1.8,0),30)
 	hotspot("escape",town,escape+Vector3(0,1,0),"Follow the trail into the woods",3)
-	for x in [98,142]:game.block(town,Vector3(x,1.2,-755),Vector3(.2,2.4,100),"27382c",true)
+	# Leave an opening where the golden path joins the village.
+	game.block(town,Vector3(142,1.2,-755),Vector3(.2,2.4,100),"27382c",true)
+	game.block(town,Vector3(98,1.2,-768),Vector3(.2,2.4,74),"27382c",true)
+	game.block(town,Vector3(98,1.2,-711),Vector3(.2,2.4,12),"27382c",true)
 	game.block(town,Vector3(120,1.2,-805),Vector3(44,2.4,.2),"27382c",true)
 
 func daylight(enabled: bool) -> void:
@@ -275,6 +303,8 @@ func reset() -> void:
 	state_time=0
 	fruit_taken.clear()
 	knife=false
+	ground_knife.show()
+	attack_ready_time=0
 	shovel=false
 	dragging=false
 	coffee=false
@@ -294,6 +324,7 @@ func reset() -> void:
 	opponent.hide()
 	pursuer.hide()
 	town.hide()
+	for limb in scare_limbs:limb.rotation=Vector3.ZERO
 	props.hide()
 	game.player.movement_scale=1
 	game.transition_shade.hide()
@@ -330,13 +361,14 @@ func restore(data: Dictionary) -> void:
 		hunger=100
 		for fruit in fruit_nodes:fruit.hide()
 		set_phase("fork","The engine is running again. Choose the bus or the golden path.")
-		place_player(point(20,-691)+Vector3(0,.15,0),point(20,-694)+Vector3.UP)
+		place_player(Route.FOREST_FORK+Vector3(-3,.15,3),Route.WALK_PATH[1]+Vector3.UP)
 		save_at("fork")
 	elif saved=="loop":place_loop()
 	else:
 		place_town()
 		if saved in ["burial","closet","dawn"]:
 			knife=true
+			ground_knife.hide()
 			opponent.position=HOUSE+Vector3(0,.4,0)
 			opponent.rotation.z=PI/2
 			set_phase("burial","Take the shovel. Drag the body to the marked grave behind the house.")
@@ -368,6 +400,7 @@ func set_phase(value: String, objective: String) -> void:
 	phase=value
 	state_time=0
 	look_back_time=0
+	look_back_armed=false
 	game.current_target=""
 	game.prompt.text=""
 	game.caption_time=0
@@ -380,7 +413,7 @@ func begin_forest() -> void:
 	game.watcher.hide()
 	game.set_door(true)
 	hunger=minf(hunger,35)
-	set_phase("forage","The bus has stalled. Follow the lanterns and gather three handfuls of fruit.")
+	set_phase("forage","The bus has stalled. Search the nearby undergrowth for something to eat.")
 	game.say("I haven't eaten since my shift began.",4)
 	game.play_sound("stall")
 	save_at("forest")
@@ -393,6 +426,7 @@ func allowed() -> Array:
 				if i not in fruit_taken:ids.append("fruit"+str(i))
 			return ids
 		"fork":return ["shortcut","take_bus"]
+		"town":return ["knife"]
 		"confront":return ["defend"] if knife else ["knife"]
 		"mirror":return ["mirror"] if mirror_wait<=0 else []
 		"escape":return ["escape"]
@@ -409,7 +443,7 @@ func update_target() -> void:
 		game.current_target="leave_closet"
 		game.prompt.text="E   Leave the closet   /   Stay hidden until daylight"
 		return
-	var best := .82
+	var best := .65
 	for id in allowed():
 		var spot: Dictionary=spots[id]
 		var position: Vector3=spot.parent.to_global(spot.local)
@@ -418,7 +452,7 @@ func update_target() -> void:
 		if diff.length()<spot.radius and aim>best:
 			best=aim
 			game.current_target=id
-			game.prompt.text="E   "+spot.title
+			game.prompt.text=("LMB / E   " if id=="defend" else "E   ")+spot.title
 	if game.current_target.is_empty() and game.seated_index<0 and game.player.get_parent()==game.bus:
 		for i in range(game.seats.size()):
 			if not game.passengers.can_sit(i):continue
@@ -440,13 +474,9 @@ func interact(id: String) -> void:
 		if fruit_taken.size()==3:
 			hunger=100
 			pursuit_grace=5
-			set_phase("return","Follow the lanterns back to the golden sign. Do not look behind you.")
-			game.say("Footsteps. Keep moving toward the lanterns.",5,true)
-	elif id=="shortcut":
-		branch="walk"
-		pursuit_grace=4
-		set_phase("walk","Follow the golden path to Loomesville. Do not look back.")
-		game.play_sound("rustle")
+			set_phase("return","Return to the path. Something is moving in the trees.")
+			game.say("Footsteps in the undergrowth.",5,true)
+	elif id=="shortcut":start_walking()
 	elif id=="take_bus":
 		if not game.player_aboard():
 			game.set_objective("Walk through the doors to board.")
@@ -458,8 +488,10 @@ func interact(id: String) -> void:
 		set_phase("bus_depart","Loomesville is the final stop.")
 	elif id=="knife":
 		knife=true
+		ground_knife.hide()
 		held_blade.show()
-		game.set_objective("Keep your distance. E to defend when the attacker gets close.")
+		attack_ready_time=0
+		set_phase("confront","Knife ready. Left-click or E to defend when the attacker gets close.")
 	elif id=="defend":
 		game.play_sound("impact")
 		held_blade.hide()
@@ -520,26 +552,31 @@ func update(delta: float) -> void:
 		status.text="FRUIT   "+str(fruit_taken.size())+" / 3"
 		if hunger<=0:fail("You waited too long. The hunger took you.")
 	elif phase in ["return","walk"]:
-		var goal := point(20,-694) if phase=="return" else point(65,-745)
+		var goal: Vector3=Route.FOREST_FORK if phase=="return" else walking_goal()
 		pursuit(delta,goal)
-		if phase=="dead":return
-		if game.player.global_position.distance_to(goal)<3.2:
+		if phase in ["dead","jumpscare"] or look_back_armed:return
+		var destination: Vector3=Route.FOREST_FORK if phase=="return" else Route.WALK_PATH[-1]
+		if game.player.global_position.distance_to(destination)<3.8:
 			pursuer.hide()
 			if phase=="return":
 				set_phase("fork","The engine is running again. Choose the bus or the golden path.")
 				game.engine.play()
 				save_at("fork")
-			else:transition("town")
+			else:place_town(true)
+	elif phase=="fork":
+		if on_walking_path():start_walking()
+	elif phase=="jumpscare":
+		update_jumpscare()
 	elif phase=="bus_depart":
 		game.set_door(false)
 		if game.can_drive():set_phase("bus_ride","Next stop: Loomesville.")
 	elif phase=="bus_ride":
 		var old_z: float=game.bus.position.z
-		game.bus.position.z=lerpf(-680,-710,smoothstep(0,8,state_time))
+		game.bus.position.z=lerpf(-680,Route.TERMINUS_Z,smoothstep(0,Route.FINAL_RIDE_SECONDS,state_time))
 		game.align_bus()
 		for wheel in game.wheels:wheel.rotate_object_local(Vector3.UP,(old_z-game.bus.position.z)/.52)
 		game.engine.volume_db=-15
-		if state_time>=8:
+		if state_time>=Route.FINAL_RIDE_SECONDS:
 			game.engine.volume_db=-22
 			game.set_door(true)
 			game.next_stop_label.text="LOOMESVILLE  /  TERMINUS"
@@ -555,18 +592,21 @@ func update(delta: float) -> void:
 			else:place_town()
 	elif phase=="town":
 		if game.player.global_position.distance_to(HOUSE+Vector3(0,.1,4.5))<4:
-			set_phase("confront","Someone is in your house. Take the kitchen knife from the left table.")
+			set_phase("confront","There is a knife on the small table beside the doorway.")
 			game.say("That's... me." if branch=="walk" else "Someone followed me home.",3)
 	elif phase=="confront":
 		var target: Vector3=game.player.global_position
 		target.x=clampf(target.x,HOUSE.x-4,HOUSE.x+4)
 		target.z=clampf(target.z,HOUSE.z-4,HOUSE.z+4)
 		target.y=.12
-		if state_time>8:
+		# Let the player find and equip the weapon before the rush begins.
+		if knife:attack_ready_time+=delta
+		status.text="LMB / E   DEFEND" if knife else ""
+		if knife and attack_ready_time>2.5:
 			opponent.position=opponent.position.move_toward(target,delta*.65)
 			var face := target-opponent.position
 			if face.length()>.1:opponent.rotation.y=atan2(-face.x,-face.z)
-			if opponent.global_position.distance_to(game.player.global_position)<.7:fail("Your double reached you.")
+			if opponent.global_position.distance_to(game.player.global_position)<.7:fail("The attacker reached you. Use left-click or E while it is within reach.")
 	elif phase in ["burial","burying"]:
 		burial_remaining=maxf(0,burial_remaining-delta)
 		status.text="BURY BEFORE IT WAKES   %d:%02d" % [int(burial_remaining)/60,int(burial_remaining)%60]
@@ -594,6 +634,44 @@ func update(delta: float) -> void:
 	elif phase=="mirror":
 		mirror_face.position.x=-3.4+clampf((game.player.global_position.x-HOUSE.x+3.4)*.1,-.15,.15)
 
+func start_walking() -> void:
+	branch="walk"
+	pursuit_grace=4
+	town.show()
+	set_phase("walk","Follow the golden path into Loomesville.")
+	game.play_sound("rustle")
+
+func on_walking_path() -> bool:
+	var at := Vector2(game.player.global_position.x,game.player.global_position.z)
+	if at.distance_to(Vector2(Route.FOREST_FORK.x,Route.FOREST_FORK.z))<5:return false
+	for i in range(Route.WALK_PATH.size()-1):
+		var a: Vector3=Route.WALK_PATH[i]
+		var b: Vector3=Route.WALK_PATH[i+1]
+		if Geometry2D.get_closest_point_to_segment(at,Vector2(a.x,a.z),Vector2(b.x,b.z)).distance_to(at)<4.2:return true
+	return false
+
+func walking_goal() -> Vector3:
+	# Use the next bend, not the distant endpoint, for backward-gaze detection.
+	var at := Vector2(game.player.global_position.x,game.player.global_position.z)
+	var best := INF
+	var goal: Vector3=Route.WALK_PATH[-1]
+	for i in range(Route.WALK_PATH.size()-1):
+		var a: Vector3=Route.WALK_PATH[i]
+		var b: Vector3=Route.WALK_PATH[i+1]
+		var distance := Geometry2D.get_closest_point_to_segment(at,Vector2(a.x,a.z),Vector2(b.x,b.z)).distance_to(at)
+		if distance<best:
+			best=distance
+			goal=b
+			if at.distance_to(Vector2(b.x,b.z))<2.0 and i+2<Route.WALK_PATH.size():goal=Route.WALK_PATH[i+2]
+	return goal
+
+func try_defend() -> bool:
+	if phase!="confront" or not knife:return false
+	var delta: Vector3=opponent.global_position+Vector3(0,1.2,0)-game.player.camera.global_position
+	if delta.length()>2.8 or (-game.player.camera.global_basis.z).dot(delta.normalized())<.45:return false
+	interact("defend")
+	return true
+
 func pursuit(delta: float, goal: Vector3) -> void:
 	pursuit_grace=maxf(0,pursuit_grace-delta)
 	var ahead: Vector3=goal-game.player.global_position
@@ -602,20 +680,46 @@ func pursuit(delta: float, goal: Vector3) -> void:
 	var looking: Vector3=-game.player.camera.global_basis.z
 	looking.y=0
 	var backwards := looking.normalized().dot(ahead)<-.45
-	look_back_time=look_back_time+delta if backwards and pursuit_grace<=0 else maxf(0,look_back_time-delta*2)
-	if look_back_time>.18:status.text="KEEP FACING THE LANTERNS"
-	if look_back_time>=1.05:
-		fail("You looked back. He was waiting.")
-		return
-	if pursuit_grace<=0:
-		pursuer.show()
-		pursuer.position=game.player.global_position-ahead*7
-		pursuer.position.y=0
-		pursuer.rotation.y=atan2(-ahead.x,-ahead.z)
+	# The empty view is the setup. Looking alone never opens a failure screen.
+	pursuer.hide()
+	if not look_back_armed:
+		look_back_time=look_back_time+delta if backwards and pursuit_grace<=0 else 0.0
+		if look_back_time>=.35:
+			look_back_armed=true
+			look_back_origin=game.player.global_position
+	else:
+		var movement: Vector3=game.player.global_position-look_back_origin
+		if Vector2(movement.x,movement.z).length()>=.18:
+			set_phase("jumpscare","")
+			game.player.enabled=false
+			game.player.velocity=Vector3.ZERO
+			game.player.reset_zoom()
+			trail_audio.stop()
+			game.play_sound("ambush")
+			update_jumpscare()
+			return
+	pursuer.position=game.player.global_position-ahead*7
 	sound_clock-=delta
 	if sound_clock<=0:
 		trail_audio.play()
 		sound_clock=2.4
+
+func update_jumpscare() -> void:
+	var camera: Camera3D=game.player.camera
+	var forward: Vector3=-camera.global_basis.z
+	forward.y=0
+	forward=forward.normalized()
+	pursuer.show()
+	pursuer.position=camera.global_position+forward*lerpf(3.3,.62,smoothstep(0,.3,state_time))-Vector3(0,1.83,0)
+	pursuer.rotation.y=atan2(forward.x,forward.z)
+	for i in [1,3]:
+		scare_limbs[i].rotation.x=lerpf(.1,1.45,smoothstep(0,.3,state_time))
+		scare_limbs[i].rotation.z=-.18 if i==1 else .18
+	game.transition_shade.color=Color(0,0,0,clampf((state_time-.55)*5,0,1))
+	game.transition_shade.show()
+	if state_time>=.9:
+		pursuer.hide()
+		fail("There was nothing behind you. Then you moved.")
 
 func transition(destination: String) -> void:
 	set_phase("transit","")
@@ -625,10 +729,11 @@ func transition(destination: String) -> void:
 	game.transition_shade.show()
 	pursuer.hide()
 
-func place_town() -> void:
+func place_town(keep_position: bool=false) -> void:
 	active=true
 	town.show()
-	props.hide()
+	# Keep the travelled trail visible at the edge of town.
+	props.visible=keep_position
 	pursuer.hide()
 	opponent.show()
 	double_model.visible=branch=="walk"
@@ -636,11 +741,13 @@ func place_town() -> void:
 	opponent.position=HOUSE+Vector3(0,.12,-1)
 	opponent.rotation=Vector3.ZERO
 	knife=false
+	ground_knife.show()
+	attack_ready_time=0
 	held_blade.hide()
 	game.engine.stop()
 	trail_audio.stop()
 	game.player.movement_scale=1
-	place_player(Vector3(120,.15,-739),HOUSE+Vector3(0,1,5))
+	if not keep_position:place_player(Vector3(120,.15,-739),HOUSE+Vector3(0,1,5))
 	set_phase("town","Follow the dark footprints to house 17.")
 	save_at("town")
 

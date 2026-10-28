@@ -1,4 +1,5 @@
 extends RefCounted
+const Route=preload("res://scripts/route.gd")
 const Story=preload("res://scripts/story.gd")
 const HOUSE=Vector3(120,0,-775)
 
@@ -47,7 +48,7 @@ static func run(g) -> bool:
 		aim(g,id,Vector3(target.x,.15,target.z+1.7))
 		g.request_interaction(id)
 	assert(a.phase=="return" and a.hunger==100)
-	var goal: Vector3=a.point(20,-694)
+	var goal: Vector3=Route.FOREST_FORK
 	a.place_player(a.point(30,-700)+Vector3(0,.15,0),goal+Vector3.UP)
 	a.pursuit_grace=0
 	var hunger_before: float=a.hunger
@@ -56,25 +57,41 @@ static func run(g) -> bool:
 	g._process(20)
 	assert(a.state_time==timer_before and a.hunger==hunger_before)
 	g.resume_game()
-	# Side glances are allowed; sustained backward gaze is not.
+	# A backward look shows an empty forest. Only a subsequent physical step attacks.
 	var forward: Vector3=(goal-g.player.global_position).normalized()
 	g.player.camera.look_at(g.player.camera.global_position+forward.rotated(Vector3.UP,PI/2))
 	a.update(.5)
-	assert(a.phase=="return")
+	assert(a.phase=="return" and not a.look_back_armed)
 	g.player.camera.look_at(g.player.camera.global_position-forward)
-	a.update(1.1)
+	a.update(.4)
+	a.update(2)
+	assert(a.phase=="return" and a.look_back_armed and not a.pursuer.visible and not g.paused)
+	g.player.global_position.x+=.1
+	a.update(.1)
+	assert(a.phase=="return","Small camera/body settling must not count as a step")
+	Input.action_press("right")
+	for i in range(40):
+		await g.get_tree().physics_frame
+		if a.phase=="jumpscare":break
+	Input.action_release("right")
+	assert(a.phase=="jumpscare" and a.pursuer.visible and not g.paused and not g.player.enabled)
+	var scare_time: float=a.state_time
+	g.show_menu(true)
+	g._process(2)
+	assert(a.state_time==scare_time)
+	g.resume_game()
+	assert(not g.player.enabled)
+	a.update(.3)
+	assert(a.phase=="jumpscare" and a.pursuer.visible)
+	a.update(.7)
 	assert(a.phase=="dead" and g.paused)
 	g.continue_game()
 	assert(a.phase=="forage" and a.fruit_taken.is_empty(),"Forest failure restores a safe checkpoint")
-	# Walk the shortcut into town and complete the mirror loop.
+	# Walk the entire continuous trail; no sign interaction or endpoint teleport.
 	a.restore({"phase":"fork","branch":"walk"})
-	aim(g,"shortcut",a.point(20,-691)+Vector3(0,.15,0))
-	g.request_interaction("shortcut")
-	assert(a.phase=="walk")
-	a.place_player(a.point(65,-744)+Vector3(0,.15,0),a.point(65,-750)+Vector3.UP)
-	a.update(.1)
-	assert(a.phase=="transit")
-	a.update(1.2)
+	for i in range(1,Route.WALK_PATH.size()):
+		await walk_to(g,Route.WALK_PATH[i]+Vector3(0,.15,0),1500)
+		assert(a.phase in ["walk","town"],"Walking the path must activate it without E")
 	assert(a.phase=="town" and a.branch=="walk")
 	# A checkpoint camera faces the same direction as movement.
 	var z_before: float=g.player.global_position.z
@@ -85,10 +102,20 @@ static func run(g) -> bool:
 	a.place_player(HOUSE+Vector3(0,.15,5.5),HOUSE+Vector3(0,1,0))
 	a.update(.1)
 	assert(a.phase=="confront")
-	aim(g,"knife",HOUSE+Vector3(-2.7,.15,3.7))
-	g.request_interaction("knife")
-	aim(g,"defend",a.opponent.global_position+Vector3(0,.05,1.7))
-	g.request_interaction("defend")
+	var still: Vector3=a.opponent.position
+	a.update(20)
+	assert(a.phase=="confront" and a.opponent.position==still,"Unarmed player has time to find the knife")
+	aim(g,"knife",HOUSE+Vector3(0,.15,5.5))
+	g.request_interaction(g.current_target)
+	assert(a.knife and a.held_blade.visible and not a.ground_knife.visible)
+	assert(not a.try_defend(),"Cannot hit from the doorway")
+	await walk_to(g,HOUSE+Vector3(.3,.15,1.0))
+	a.place_player(g.player.global_position,a.opponent.global_position+Vector3(0,1.2,0))
+	g.update_target()
+	var attack := InputEventAction.new()
+	attack.action="attack" if a.branch=="walk" else "interact"
+	attack.pressed=true
+	g._unhandled_input(attack)
 	assert(a.phase=="mirror")
 	for i in range(3):
 		aim(g,"mirror",HOUSE+Vector3(-3.4,.15,-3))
@@ -118,8 +145,10 @@ static func run(g) -> bool:
 	g.set_door(false,true)
 	a.update(.1)
 	assert(a.phase=="bus_ride")
-	a.update(8.1)
-	assert(a.phase=="arrival" and is_equal_approx(g.bus.position.z,-710) and g.door_goal==1)
+	a.update(10)
+	assert(a.phase=="bus_ride" and g.bus.position.z< -710 and g.bus.position.z>Route.TERMINUS_Z)
+	a.update(Route.FINAL_RIDE_SECONDS)
+	assert(a.phase=="arrival" and is_equal_approx(g.bus.position.z,Route.TERMINUS_Z) and g.door_goal==1)
 	g.set_door(true,true)
 	g.player.position=Vector3(2.5,.15,-3)
 	g.board_if_inside()
@@ -128,10 +157,20 @@ static func run(g) -> bool:
 	assert(a.phase=="town" and a.branch=="bus" and a.intruder_model.visible)
 	a.place_player(HOUSE+Vector3(0,.15,5.5),HOUSE+Vector3(0,1,0))
 	a.update(.1)
-	aim(g,"knife",HOUSE+Vector3(-2.7,.15,3.7))
-	g.request_interaction("knife")
-	aim(g,"defend",a.opponent.global_position+Vector3(0,.05,1.7))
-	g.request_interaction("defend")
+	still=a.opponent.position
+	a.update(20)
+	assert(a.phase=="confront" and a.opponent.position==still,"Unarmed player has time to find the knife")
+	aim(g,"knife",HOUSE+Vector3(0,.15,5.5))
+	g.request_interaction(g.current_target)
+	assert(a.knife and a.held_blade.visible and not a.ground_knife.visible)
+	assert(not a.try_defend(),"Cannot hit from the doorway")
+	await walk_to(g,HOUSE+Vector3(.3,.15,1.0))
+	a.place_player(g.player.global_position,a.opponent.global_position+Vector3(0,1.2,0))
+	g.update_target()
+	attack= InputEventAction.new()
+	attack.action="attack" if a.branch=="walk" else "interact"
+	attack.pressed=true
+	g._unhandled_input(attack)
 	assert(a.phase=="burial" and a.burial_remaining==180)
 	a.update(181)
 	assert(a.phase=="dead")
@@ -182,5 +221,5 @@ static func run(g) -> bool:
 	assert(g.modal and g.modal_kind=="newspaper")
 	g.close_document()
 	assert(a.phase=="ending" and g.paused)
-	print("PASS: physical breakdown exit, fruit, pursuit fairness, retry/save, shortcut and bus branches, mirror, burial timer, closet/dawn and two ending documents")
+	print("PASS: physical breakdown exit, scattered fruit, look-back then step ambush, continuous golden path, reachable knife and LMB/E defense, distant terminus, retry/save, mirror, burial timer, closet/dawn and two ending documents")
 	return true

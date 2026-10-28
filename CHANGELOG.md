@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1
+- First passenger boards without a look-back prompt or required passenger interaction; departure follows the normal boarding and door checks.
+- Smaller, correctly oriented footpath sign moved off the walking line. Fruit bushes scattered around the breakdown clearing with no direct lantern trail.
+- Backward gaze shows an empty forest. A subsequent step triggers an animated close lunge and original sound sting before failure; looking alone is safe. Pause/retry preserve the encounter state correctly.
+- Golden path activates on foot without pressing E and connects continuously into the village. Cleared the fence opening and lowered the blocking curb; tests physically walk the entire route.
+- Visible kitchen knife on a lit table beside the doorway, reachable before danger. Attacker waits until the weapon is equipped; left-click and E both defend within reach.
+- Loomesville terminus moved from 30 to 220 metres beyond the breakdown, with a 36-second repaired bus ride, extra bends and extended forest/road scenery.
+- Regression checks exercise actual movement, both defense inputs, jumpscare timing and both ending branches. New rendered correction previews.
+
 ## 0.6.0
 - Watcher remains visible under normal gaze. A sustained right-click zoom starts a 1.9-second turn and a stare before disappearance at three seconds. Left/right placement respects the player's view and avoids bus window pillars; missed encounters only relocate far behind and offscreen.
 - Darker exterior lighting and denser drifting fog along a longer, six-stop route: Firewatch Shelter, Mill Road, Old Quarry, Pine Crossing, St Bride's and Loomesville. Five seated passenger arrivals.

@@ -2,7 +2,7 @@ extends RefCounted
 ## Old numeric checkpoint IDs remain valid; extra stops have appended IDs.
 enum Stage { STOP, ARRIVING, BOARD, CAB, CLOCK, RIDING, PASSENGER, NEXT_RIDE, SECOND_STOP, FINAL_RIDE, DEER, FINISHED, THIRD_RIDE, THIRD_STOP, FOURTH_RIDE, FOURTH_STOP }
 const STOP_NAMES := ["FIREWATCH SHELTER","MILL ROAD","OLD QUARRY","PINE CROSSING","ST BRIDE'S","LOOMESVILLE"]
-const STOP_Z := [0.0,-130.0,-270.0,-410.0,-550.0,-710.0]
+const STOP_Z := [0.0,-130.0,-270.0,-410.0,-550.0,-900.0]
 const MOVING := [Stage.RIDING,Stage.NEXT_RIDE,Stage.THIRD_RIDE,Stage.FOURTH_RIDE,Stage.FINAL_RIDE]
 const STOP_STAGES := [Stage.BOARD,Stage.PASSENGER,Stage.SECOND_STOP,Stage.THIRD_STOP,Stage.FOURTH_STOP]
 const DURATIONS := {Stage.ARRIVING:12.0,Stage.RIDING:26.0,Stage.NEXT_RIDE:30.0,Stage.THIRD_RIDE:28.0,Stage.FOURTH_RIDE:28.0,Stage.FINAL_RIDE:32.0}
@@ -17,7 +17,7 @@ func interact(id: String) -> bool:
 	return true
 
 func depart_stop() -> bool:
-	var next := {Stage.SECOND_STOP:Stage.THIRD_RIDE,Stage.THIRD_STOP:Stage.FOURTH_RIDE,Stage.FOURTH_STOP:Stage.FINAL_RIDE}
+	var next := {Stage.PASSENGER:Stage.NEXT_RIDE,Stage.SECOND_STOP:Stage.THIRD_RIDE,Stage.THIRD_STOP:Stage.FOURTH_RIDE,Stage.FOURTH_STOP:Stage.FINAL_RIDE}
 	if not next.has(stage):return false
 	stage=next[stage]
 	elapsed=0

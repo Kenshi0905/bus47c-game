@@ -2,7 +2,7 @@ import math,random,wave,struct
 from pathlib import Path
 sr=22050
 rng=random.Random(4706)
-lengths={'stall':2.1,'rustle':1.4,'mirror':2.5,'dig':2.0,'knock':2.6,'cry':3.2,'pursuit':2.2,'pour':1.7,'birds':5.5}
+lengths={'stall':2.1,'rustle':1.4,'mirror':2.5,'dig':2.0,'knock':2.6,'cry':3.2,'pursuit':2.2,'pour':1.7,'birds':5.5,'ambush':.85}
 for name,duration in lengths.items():
  samples=[];low=0
  for i in range(int(sr*duration)):
@@ -15,6 +15,7 @@ for name,duration in lengths.items():
   elif name=='cry':s=(math.sin(2*math.pi*(178*t+18*math.sin(t*1.6)))+.3*math.sin(2*math.pi*560*t))*.075*math.sin(math.pi*t/duration)**2
   elif name=='pursuit':s=sum((low*.9+math.sin(2*math.pi*70*(t-b))*.18)*math.exp(-(t-b)*18) if t>=b else 0 for b in [.1,.72,1.37,2.0])
   elif name=='pour':s=(n-low)*.09*math.sin(math.pi*t/duration)**2+math.sin(t*(3400+650*t))*.025
+  elif name=='ambush':s=(low*.7+math.sin(2*math.pi*(190*t+95*t*t))*.18+math.sin(2*math.pi*317*t)*.12)*min(1,t*90)*math.exp(-t*4)
   else:
    s=0
    for b in [.1,.7,1.5,2.4,3.6,4.5]:
