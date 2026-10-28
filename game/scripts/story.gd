@@ -5,11 +5,17 @@ var stage: int = Stage.STOP
 var elapsed: float = 0.0
 
 func interact(id: String) -> bool:
-	var expected := {Stage.STOP: "note", Stage.BOARD: "door", Stage.CAB: "driver", Stage.CLOCK: "clock", Stage.PASSENGER: "passenger", Stage.SECOND_STOP: "route", Stage.DEER: "deer"}
+	var expected := {Stage.STOP: "note", Stage.BOARD: "door", Stage.CAB: "driver", Stage.CLOCK: "clock", Stage.PASSENGER: "passenger", Stage.DEER: "deer"}
 	if expected.get(stage, "") != id or id.is_empty():
 		return false
 	stage += 1
 	elapsed = 0.0
+	return true
+
+func depart_stop() -> bool:
+	if stage!=Stage.SECOND_STOP:return false
+	stage=Stage.FINAL_RIDE
+	elapsed=0
 	return true
 
 func tick(delta: float) -> bool:

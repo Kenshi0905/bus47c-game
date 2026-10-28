@@ -1,4 +1,5 @@
 extends Node3D
+const Route = preload("res://scripts/route.gd")
 ## Editable, seeded forest. Each 50 m roadside chunk shares instanced meshes.
 const CHUNKS := 13
 const TREES_PER_SIDE := 140
@@ -29,7 +30,7 @@ func _ready() -> void:
 					var height := rng.randf_range(.75, 1.6) if kind == 0 else rng.randf_range(.65, 1.5)
 					var width := rng.randf_range(.7, 1.2)
 					var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(width, height, width))
-					transforms[mesh_kind].append(Transform3D(basis, Vector3(x, 0, z - center_z)))
+					transforms[mesh_kind].append(Transform3D(basis, Route.point(x,0,z)-Vector3(0,0,center_z)))
 					if kind == 0: tree_count += 1
 					else: understory_count += 1
 			for kind in range(4):
@@ -37,6 +38,8 @@ func _ready() -> void:
 	add_mist()
 
 func in_clearing(x: float, z: float) -> bool:
+	for pad_z in range(-152,-270,-24):
+		if absf(z-pad_z)<4 and absf(x)<12:return true
 	# Preserve the shelter, boarding approach, stop signs and watcher sightlines.
 	if x > 2.5 and x < 12 and z > -16 and z < 12: return true
 	for stop_z in [-133.0, -273.0]:
@@ -59,7 +62,7 @@ func add_mist() -> void:
 			for layer in range(2):
 				var mist := MeshInstance3D.new()
 				mist.mesh = mesh
-				mist.position = Vector3(side * (10.5 + layer * 10 + sin(float(z)) * 2), .9 + sin(z * .13) * .32 + layer * .28, z + layer * 7)
+				mist.position = Route.point(side * (10.5 + layer * 10 + sin(float(z)) * 2), .9 + sin(z * .13) * .32 + layer * .28, z + layer * 7)
 				mist.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				mist.visibility_range_end = 110
 				add_child(mist)

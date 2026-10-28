@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+- Animated title camera over the live bus scene; explicit Main Menu and Exit to Windows buttons. Returning to title preserves the checkpoint.
+- Winding road geometry shared with the bus, forest and roadside scenery. The cabin turns with the route, movement follows its orientation, and steering responds to bends.
+- Proper Mill Road and Old Quarry shelters with platforms, benches, lamps, timetables, stop flags and bins.
+- Old Quarry departs automatically after its dwell and boarding checks, without inspecting the route sign. Door and reboarding protections remain active.
+- Optional retro world filter with 640×360 sampling, palette dithering, muted colour, scanlines, grain and vignette. Menus and notes retain crisp text.
+- Procedural worn paper with fibrous grain, torn edges, stains, fold creases and typed note text.
+- Hold right mouse to zoom, with adjusted look sensitivity and reset on pause or document inspection.
+- Suited watcher encounters in the player's forward field of view during Mill Road to Old Quarry. Direct gaze dismisses him; zoomed gaze triggers a brief turn toward the player before disappearance. No encounter gates progression.
+- Windows scene tests cover curved-cabin movement, both watcher reactions, zoom reset, automatic departure and title/checkpoint round trips. New rendered previews in docs/v0.5-*.png.
+
 ## 0.4.0
 - Three-spoke steering wheel and column, with steering corrections while the bus moves.
 - All ten empty passenger seats support E to sit, free mouse look and Space to stand safely in the aisle. Occupied seats cannot overlap the player.
