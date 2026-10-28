@@ -1,0 +1,17 @@
+# Keep unrelated existing media and local tooling out of the game history.
+/*
+!/.gitignore
+!/README.md
+!/CHANGELOG.md
+!/game/
+!/docs/
+!/tools/
+!/.github/
+!/Start Game.cmd
+!/Open Editor.cmd
+game/.godot/
+game/builds/
+tools/godot/
+tools/*.zip
+**/__pycache__/
+*.tmp
