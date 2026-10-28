@@ -2,21 +2,21 @@
 
 A short first-person low-poly horror game about a firewatcher's ride home to Loomesville.
 
-## Play prototype 0.1.0
+## Play prototype 0.2.0
 
 On this development PC, double-click **Start Game.cmd**. To edit, double-click **Open Editor.cmd**. On a fresh Windows checkout, run `powershell -ExecutionPolicy Bypass -File tools/setup.ps1` first to download the pinned official Godot runtime and import assets. The runtime is intentionally not committed.
 
-WASD moves, mouse looks, E inspects or boards, Shift walks faster, Escape pauses. Read the bench note, wait for the bus, approach its front door, inspect the empty driver's seat and the clock, then find the passenger at the rear. Expect a short 3–5 minute prototype. An end screen makes the boundary explicit.
+WASD moves, mouse looks, E inspects, Shift walks faster, Escape pauses. Read the bench note, watch the bus approach from down the road, then physically walk up the steps and through its open doors. Inspect the empty driver's seat and the small dashboard clock. The bus drives to Mill Road and Old Quarry, with seated passengers and figures visible outside. The chapter ends at the deer collision. Expect roughly 5–8 minutes on a first playthrough.
 
-The pause menu provides volume, mouse sensitivity, restart checkpoint and quit. No camera bob or flashing effects. Important audio events have captions. Saves stay local and are excluded from Git. Test runs use a separate save filename. Boarding currently uses an interaction transition into the bus; it is not a physically climbable doorway yet.
+The redesigned title/pause menus offer settings for volume, sensitivity and field of view, plus checkpoint restart. Important audio events have captions. Saves stay local and are excluded from Git. Test runs use a separate save filename. Door leaves rotate on hinges, and collision opens only when the doorway is clear. A smooth collision ramp under the visible steps allows boarding without jumping or teleportation. The bus carries the player along a fixed road; passing scenery is no longer moved independently of the bus.
 
-The deer, forest pursuit, hunger, town and branching endings are planned but not implemented. Characters are static editable models. This milestone has been tested on Windows; the CI configuration checks Linux headless logic but is not a claim of a tested Linux graphical release. Browser and mobile exports come later.
+Forest exploration/pursuit, hunger, town and branching endings are not implemented yet. Characters have editable static seated meshes; skeletal animation and facial transitions remain future work. This milestone has been tested on Windows; Linux CI is a headless logic/physics check, not a graphical release certification. Browser and mobile exports come later.
 
 ## Checks
 
 Run `powershell -ExecutionPolicy Bypass -File tools/test.ps1`. Tests cover ordered progression, repeated interactions, timers, corrupt checkpoint validation, actual interaction range/aim, scene assets, boarding and completion. GitHub Actions runs the corresponding import and smoke tests on pushes and pull requests.
 
-All geometry and synthesized prototype audio are original project assets. Godot is MIT-licensed: https://godotengine.org/license/ . Include engine and third-party notices when distributing exported builds.
+Geometry and synthesized ambience are original project assets. Footsteps are edited from the two YouTube clips supplied by the user; see [audio sources](docs/audio-sources.md) for attribution and the unresolved public-release licence status. Godot is MIT-licensed: https://godotengine.org/license/ . Include engine and third-party notices when distributing exported builds.
 
 ## Development
 

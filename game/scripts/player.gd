@@ -2,7 +2,7 @@ extends CharacterBody3D
 var camera: Camera3D
 var enabled := false
 var sensitivity := 0.0022
-var step_time := 0.0
+var step_distance := 0.0
 signal footstep
 
 func _ready() -> void:
@@ -29,14 +29,18 @@ func _physics_process(delta: float) -> void:
 	if not enabled: return
 	var input := Input.get_vector("left", "right", "forward", "back")
 	var direction := transform.basis * Vector3(input.x, 0, input.y)
-	var speed := 2.1 if not Input.is_action_pressed("sprint") else 3.6
+	var speed := 1.8 if not Input.is_action_pressed("sprint") else 2.8
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	if not is_on_floor(): velocity.y -= 18.0 * delta
 	else: velocity.y = -0.1
+	var before := position
 	move_and_slide()
-	if input.length() > 0.1 and is_on_floor():
-		step_time += delta
-		if step_time > 0.5:
-			step_time = 0.0
+	var travelled := Vector2(position.x-before.x,position.z-before.z).length()
+	if input.length() > 0.1 and is_on_floor() and travelled > .001:
+		step_distance += travelled
+		if step_distance > 1.15:
+			step_distance = 0.0
 			footstep.emit()
+	elif input.length() < .1:
+		step_distance = 0.0
