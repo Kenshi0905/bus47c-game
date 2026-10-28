@@ -1,6 +1,6 @@
 extends Node3D
 ## Off-camera arrivals, real aisle movement, and unseen standing/seated swaps.
-const MODELS := ["01_grinning_clerk", "03_long_neck_worker", "04_crooked_passenger"]
+const MODELS := ["01_grinning_clerk", "03_long_neck_worker", "04_crooked_passenger", "01_grinning_clerk", "03_long_neck_worker"]
 var seats: Array[Vector3] = []
 var owners: Array[int] = [] # -1 empty, -2 player, otherwise actor index.
 var actors: Array[Dictionary] = []
@@ -18,6 +18,9 @@ func configure(positions: Array[Vector3]) -> void:
 		var seated: Node3D = load("res://assets/characters/" + MODELS[i] + "_seated.gltf").instantiate()
 		actor.add_child(standing)
 		actor.add_child(seated)
+		if i>=3:
+			standing.scale=Vector3(.88,1.07,.9)
+			seated.scale=Vector3(.88,1.07,.9)
 		seated.hide()
 		actor.hide()
 		var limbs := rig_limbs(standing)

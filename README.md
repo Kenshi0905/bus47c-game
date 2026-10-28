@@ -2,25 +2,33 @@
 
 A short first-person low-poly horror game about a firewatcher's ride home to Loomesville.
 
-## Play prototype 0.5.0
+## Play prototype 0.6.0
 
 On this development PC, double-click **Start Game.cmd**. To edit, double-click **Open Editor.cmd**. On a fresh Windows checkout, run `powershell -ExecutionPolicy Bypass -File tools/setup.ps1` first to download the pinned official Godot runtime and import assets. The runtime is intentionally not committed.
 
-WASD moves, mouse looks, hold right-click to zoom, E inspects or sits, Space stands, Tab opens shift notes, Shift walks faster and Escape pauses. Read the bench note, watch the bus approach, then walk through its open doors. Inspect the empty driver's seat and dashboard clock. You can sit in any empty passenger seat and look around while riding. At Mill Road, inspect the new passenger. Old Quarry departs automatically after boarding; no sign interaction is required. The chapter ends at the deer collision. Expect roughly 5–8 minutes on a first playthrough.
+WASD moves, mouse looks, hold right-click to zoom, E inspects/interacts/sits, Space stands, Tab opens shift notes, Shift walks faster and Escape pauses. Read the bench note, board through the open doors, and inspect the empty driver's seat and dashboard clock. At Mill Road, inspect the new passenger. Later stops depart automatically after boarding. Start a **New Journey** to experience the whole expanded route; older checkpoints still load.
+
+Six stops including the starting shelter and terminus: **Firewatch Shelter → Mill Road → Old Quarry → Pine Crossing → St Bride's → Loomesville**. Five passengers accumulate along the route. A moving deer crosses during St Bride's to Loomesville; the bus breaks down before the terminus. The continuation opens automatically after the impact, even if you miss the deer interaction.
 
 The title menu slowly moves its camera through the live scene. Pause offers Main Menu and Exit to Windows; returning to the title preserves the last checkpoint. Settings include volume, sensitivity, field of view, subtitles and an optional retro picture filter. Pixel sampling, restrained palette dithering, grain, scanlines and vignette affect the world while text stays crisp. Menu design and asset editing notes are in [menu-design.txt](docs/menu-design.txt).
 
-The winding route carries the bus through a forest of 3,497 trees and 9,020 understory clumps with drifting low mist. Both stops have lit shelters, benches, timetables, route flags, platforms and bins. During Mill Road to Old Quarry, the suited watcher appears in a clearing near the direction you are looking. A direct look dismisses him; aim while holding right-click and he briefly turns toward you before vanishing. Encounters are separated by a cooldown, and no watcher encounter is required to advance.
+The longer winding route passes through 4,405 trees, with darker moonlight and denser ground mist. Roadside stops have shelters, benches, timetables and lights. The watcher appears through the left or right window you are looking toward, with placement checks for window pillars. Ordinary gaze never dismisses him. Hold right-click and aim a settled zoom at him for about half a second: he turns over 1.9 seconds, stares, and vanishes at three seconds. An overlooked figure can relocate only after it is far behind and offscreen. No watcher encounter gates progression.
 
 Doors open at each bus stop. Departure waits for passengers to board, the player to return inside, a clear doorway and fully closed doors. You can step out and board again while stopped. Passengers enter out of view, walk along the aisle and sit when unobserved; their seats account for wherever you are sitting. The steering wheel responds to the road bends.
 
 Thought subtitles are brief; sound descriptions can be enabled in Settings. Objectives briefly appear and remain available in the shift notes, rendered on fibrous paper with worn edges, stains and fold creases. Saves stay local and are excluded from Git; test runs use a separate save. A collision ramp under the visible steps supports physical boarding. The route is scripted, with multiple bends; the player is a passenger, not the driver.
 
-Forest exploration/pursuit, hunger, town and branching endings are not implemented yet. Characters use editable mesh parts with procedural walking and separate seated poses; full skeletal animation and facial transitions remain future work. This milestone has been tested on Windows; Linux CI is a headless logic/physics check, not a graphical release certification. Browser and mobile exports come later.
+After the breakdown, follow lanterns to gather three handfuls of fruit before hunger runs out. On the return path, keep facing the lanterns: side glances are allowed, and sustained backward gaze gives a warning before capture. At the golden sign, choose the walking shortcut or physically reboard the bus for the final stop.
+
+Both story branches are playable prototypes. The shortcut leads to the hostile double, three mirror interactions that remove facial features, and the daylight ticket loop. The bus route leads to the faceless intruder, a defensive knife interaction, a three-minute body-dragging/burial task, 90 seconds hiding in the closet, dawn, coffee and the newspaper accusation. E interacts with tools, body, grave and wardrobe. Opening the closet before daylight fails the sequence. Both endings offer a return to the fork.
+
+Safe checkpoints cover the forest, fork, town encounter, burial, closet and dawn. Pause and reading stop hunger, pursuit and burial/closet timers. Save data validates known checkpoints and continues to accept the earlier bus-only format.
+
+Characters use editable mesh parts with procedural walking and separate seated poses. The new town, props and story scenes are built in `aftermath.gd`; this is an initial gameplay/art pass, not a finished release. The mirror uses a staged portrait rather than a real-time room reflection; defense is an interaction rather than a combat system, and cries are synthesized rather than voiced dialogue. This milestone has Windows rendered and automated testing; Linux CI checks headless logic/physics. Browser, mobile, macOS and graphical Linux releases remain unverified.
 
 ## Checks
 
-Run `powershell -ExecutionPolicy Bypass -File tools/test.ps1`. Tests cover progression, checkpoints, physical boarding, all ten seats, notes input, unseen passenger arrivals and seating, obstruction/reboarding, automatic Old Quarry departure, movement in a turning cabin, watcher gaze/zoom, menu animation, checkpoint preservation through Main Menu, filter toggling and chapter completion. GitHub Actions runs the corresponding import and smoke tests on pushes and pull requests.
+Run `powershell -ExecutionPolicy Bypass -File tools/test.ps1`. Tests cover all six stops, deer timing/movement, physical boarding and breakdown exit, seats/passengers, window-side watcher placement, zoom-only disappearance, pause and save recovery, fruit, pursuit failures, both branches, physical body dragging through the back doorway, burial/closet failure and retries, and both ending documents. GitHub Actions runs the corresponding import and smoke tests on pushes and pull requests. Rendering previews are in `docs/v0.6-*.png`.
 
 Geometry and synthesized ambience are original project assets. Footsteps are edited from the two YouTube clips supplied by the user; see [audio sources](docs/audio-sources.md) for attribution and the unresolved public-release licence status. Godot is MIT-licensed: https://godotengine.org/license/ . Include engine and third-party notices when distributing exported builds.
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0
+- Watcher remains visible under normal gaze. A sustained right-click zoom starts a 1.9-second turn and a stare before disappearance at three seconds. Left/right placement respects the player's view and avoids bus window pillars; missed encounters only relocate far behind and offscreen.
+- Darker exterior lighting and denser drifting fog along a longer, six-stop route: Firewatch Shelter, Mill Road, Old Quarry, Pine Crossing, St Bride's and Loomesville. Five seated passenger arrivals.
+- Deer crosses upright during the penultimate-to-final leg; impact and breakdown occur before Loomesville. The continuation opens without requiring a gaze interaction.
+- Rebuilt boarding collision as a flush wedge after physical exit testing exposed a raised ramp edge.
+- Playable forest fruit gathering, hunger, lantern paths, a warning/grace period for backward gaze, positional pursuit footsteps and the bus/walking fork.
+- Walking branch: house double, defensive interaction, staged mirror portrait with disappearing facial features, forest escape and daylight ticket-loop ending.
+- Bus branch: repaired final bus leg, faceless house intruder, dragging and burial with a three-minute deadline, a 90-second closet sequence, dawn, coffee and newspaper ending.
+- Safe continuation checkpoints and retries. Pause/notes preserve timer and movement locks; both endings can return to the fork. Earlier save format remains readable.
+- Original synthesized stall, foliage, mirror, digging, knocking, cry, pursuit, pouring and birdsong effects. New procedural scene geometry and rendered story previews.
+- Expanded tests complete both branches and verify failure/retry paths, physical bus exit and body dragging through the house, zoom timing, six-stop progression and moving deer.
+
 ## 0.5.0
 - Animated title camera over the live bus scene; explicit Main Menu and Exit to Windows buttons. Returning to title preserves the checkpoint.
 - Winding road geometry shared with the bus, forest and roadside scenery. The cabin turns with the route, movement follows its orientation, and steering responds to bends.

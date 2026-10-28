@@ -1,6 +1,9 @@
 BUS 47C GAME PLAN
 First playable adaptation of the supplied story
 
+Implementation update for v0.6
+The playable prototype now includes both branches below. The revised route has six stops including origin and terminus: Firewatch Shelter, Mill Road, Old Quarry, Pine Crossing, St Bride's and Loomesville. The deer crosses between the last two stops and the bus stalls before town. Ordinary gaze no longer dismisses the watcher: a settled right-click zoom starts a slow turn and stare. The bus physically moves along a curved road. The original plan below records the design direction; its early time estimates and production gates are not completion claims.
+
 Direction
 A 25-35 minute first-person low-poly horror game about a firewatcher trying to reach Loomesville on a driverless bus at 2:36 AM. Preserve the empty stop, changing faces, approaching red-tied figure, deer collision, forbidden backward glance, golden shortcut, double at home, mirror transformation, burial, closet and newspaper accusation. Two endings share most locations. All changes below are proposed adaptations, not claims about the original text.
 
@@ -54,4 +57,4 @@ Test matrix
 Try ignoring notes, returning to earlier stops, spamming doors, standing in moving doors, looking away from events, running ahead, collecting fruit early, looking sideways during pursuit, pausing every timer, quitting at the fork, reloading during burial, opening the closet at each stage, disconnecting a controller and disabling audio. Verify low frame rates do not change pursuit rules. Test missing/corrupt saves and unavailable browser storage. Provide subtitles, rebindable controls, sensitivity/FOV controls, optional head bob and reduced flashes.
 
 Definition of done
-Both endings complete without coaching; no known progression blockers; checkpoints restore valid states; sounds remain intelligible at ordinary volume; objectives stay readable in dark scenes; claimed platforms pass exported-build tests. The current deliverable is the plan and editable model blockouts, not a playable game.
+Target: both endings complete without coaching; no known progression blockers; checkpoints restore valid states; sounds remain intelligible at ordinary volume; objectives stay readable in dark scenes; claimed platforms pass exported-build tests. Version 0.6 is a playable story prototype with automated branch/failure checks and Windows rendered previews. Unfamiliar-player testing, animation/art refinement and exported-platform certification remain production work.

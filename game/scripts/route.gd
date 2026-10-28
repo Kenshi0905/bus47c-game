@@ -1,6 +1,6 @@
 extends RefCounted
 ## One shared route keeps the road, scenery and moving cabin aligned.
-const ANCHORS := [Vector2(100,0),Vector2(0,0),Vector2(-30,0),Vector2(-65,8),Vector2(-100,14),Vector2(-133,14),Vector2(-165,7),Vector2(-200,-9),Vector2(-235,-16),Vector2(-273,-16),Vector2(-305,-5),Vector2(-345,12),Vector2(-390,19),Vector2(-440,9),Vector2(-550,0)]
+const ANCHORS := [Vector2(100,0),Vector2(0,0),Vector2(-30,0),Vector2(-65,8),Vector2(-100,14),Vector2(-133,14),Vector2(-165,7),Vector2(-200,-9),Vector2(-235,-16),Vector2(-273,-16),Vector2(-305,-5),Vector2(-345,12),Vector2(-380,19),Vector2(-410,19),Vector2(-440,9),Vector2(-480,-9),Vector2(-520,-15),Vector2(-550,-15),Vector2(-590,-6),Vector2(-630,8),Vector2(-660,8),Vector2(-680,8),Vector2(-710,8),Vector2(-820,0)]
 
 static func center_x(z: float) -> float:
 	for i in range(ANCHORS.size()-1):

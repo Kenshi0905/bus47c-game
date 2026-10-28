@@ -6,6 +6,7 @@ var step_distance := 0.0
 var seated := false
 var normal_fov := 76.0
 var zooming := false
+var movement_scale := 1.0
 var collider: CollisionShape3D
 signal footstep
 
@@ -42,6 +43,7 @@ func _physics_process(delta: float) -> void:
 	var input := Input.get_vector("left", "right", "forward", "back")
 	var direction := global_transform.basis * Vector3(input.x, 0, input.y)
 	var speed := 1.8 if not Input.is_action_pressed("sprint") else 2.8
+	speed*=movement_scale
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	if not is_on_floor(): velocity.y -= 18.0 * delta

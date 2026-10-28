@@ -17,6 +17,6 @@ void fragment() {
     float edge=smoothstep(0.0,.22,UV.x)*smoothstep(0.0,.22,1.0-UV.x);
     edge*=smoothstep(0.0,.3,UV.y)*smoothstep(0.0,.35,1.0-UV.y);
     float distance_fade=smoothstep(2.0,7.0,length(VERTEX))*(1.0-smoothstep(75.0,110.0,length(VERTEX)));
-    ALBEDO=vec3(.27,.35,.36);
-    ALPHA=edge*wisps*.3*distance_fade;
+    ALBEDO=vec3(.18,.25,.26);
+    ALPHA=edge*wisps*.52*distance_fade;
 }

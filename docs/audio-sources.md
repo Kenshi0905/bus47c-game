@@ -10,3 +10,5 @@ The user supplied both clips for editing and use in this private prototype.
 Edits: mono 22.05 kHz, individual impacts isolated, low-frequency drift removed, peaks matched, short fades applied. Playback follows distance walked, with small pitch variations. No full reference videos are included in the game or repository.
 
 The downloaded metadata did not supply a reuse licence. These are prototype reference assets; verify permission or replace them before public distribution. Attribution is not itself a licence. Other prototype audio, including the deer-impact effect, is originally synthesized for this project.
+
+Version 0.6 adds original synthesized `stall`, `rustle`, `mirror`, `dig`, `knock`, `cry`, `pursuit`, `pour` and `birds` effects. These are mono 22.05 kHz procedural recordings, with bounded peaks. The cry is a synthetic tonal effect, not a recording of a person. Pursuit playback uses a positional emitter behind the player.

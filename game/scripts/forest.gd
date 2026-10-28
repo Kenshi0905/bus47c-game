@@ -1,7 +1,7 @@
 extends Node3D
 const Route = preload("res://scripts/route.gd")
 ## Editable, seeded forest. Each 50 m roadside chunk shares instanced meshes.
-const CHUNKS := 13
+const CHUNKS := 19
 const TREES_PER_SIDE := 140
 const SHRUBS_PER_SIDE := 160
 const GRASS_PER_SIDE := 210
@@ -17,7 +17,7 @@ func _ready() -> void:
 	for chunk in range(CHUNKS):
 		for side in [-1, 1]:
 			var transforms: Array = [[], [], [], []]
-			var center_z := -525.0 + chunk * 50.0
+			var center_z := -825.0 + chunk * 50.0
 			for kind in range(3):
 				var count: int = [TREES_PER_SIDE, SHRUBS_PER_SIDE, GRASS_PER_SIDE][kind]
 				for i in range(count):
@@ -38,11 +38,14 @@ func _ready() -> void:
 	add_mist()
 
 func in_clearing(x: float, z: float) -> bool:
-	for pad_z in range(-152,-270,-24):
-		if absf(z-pad_z)<4 and absf(x)<12:return true
+	if z< -120 and z> -690 and absf(x)<11:return true
+	# Lantern path, fruit clearing and shortcut.
+	if z< -670 and z> -760 and x>3 and x<75:
+		for line in [[Vector2(4,-683),Vector2(20,-694)],[Vector2(20,-694),Vector2(36,-704)],[Vector2(20,-694),Vector2(65,-745)]]:
+			if Geometry2D.get_closest_point_to_segment(Vector2(x,z),line[0],line[1]).distance_to(Vector2(x,z))<3.8:return true
 	# Preserve the shelter, boarding approach, stop signs and watcher sightlines.
 	if x > 2.5 and x < 12 and z > -16 and z < 12: return true
-	for stop_z in [-133.0, -273.0]:
+	for stop_z in [-133.0, -273.0, -413.0, -553.0, -713.0]:
 		if x > 2.5 and x < 10.5 and absf(z - stop_z) < 8: return true
 		if x < -4 and x > -9 and absf(z - stop_z + 2) < 3: return true
 	# Narrow gaps reveal the distant watcher between trunks rather than at the curb.
@@ -53,16 +56,16 @@ func in_clearing(x: float, z: float) -> bool:
 
 func add_mist() -> void:
 	var mesh := QuadMesh.new()
-	mesh.size = Vector2(14, 2.8)
+	mesh.size = Vector2(16, 3.8)
 	var material := ShaderMaterial.new()
 	material.shader = preload("res://assets/ui/ground_mist.gdshader")
 	mesh.material = material
-	for z in range(-540, 100, 16):
+	for z in range(-830, 100, 14):
 		for side in [-1, 1]:
 			for layer in range(2):
 				var mist := MeshInstance3D.new()
 				mist.mesh = mesh
-				mist.position = Route.point(side * (10.5 + layer * 10 + sin(float(z)) * 2), .9 + sin(z * .13) * .32 + layer * .28, z + layer * 7)
+				mist.position = Route.point(side * (8.5 + layer * 10 + sin(float(z)) * 2), .9 + sin(z * .13) * .32 + layer * .28, z + layer * 7)
 				mist.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				mist.visibility_range_end = 110
 				add_child(mist)

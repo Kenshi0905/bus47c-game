@@ -1,18 +1,19 @@
 extends RefCounted
 const Route = preload("res://scripts/route.gd")
+const Story = preload("res://scripts/story.gd")
 var state := "hidden"
 var age := 0.0
-var cooldown := 1.2
+var cooldown := 2.0
 var appearances := 0
-var stage_seen := -1
-var destination_yaw := 0.0
+var zoom_dwell := 0.0
+var starting_yaw := 0.0
 
 func reset(figure: Node3D) -> void:
 	state="hidden"
 	age=0
-	cooldown=1.2
+	cooldown=2
 	appearances=0
-	stage_seen=-1
+	zoom_dwell=0
 	figure.hide()
 
 func appear(figure: Node3D, at: Vector3, yaw: float) -> void:
@@ -21,71 +22,86 @@ func appear(figure: Node3D, at: Vector3, yaw: float) -> void:
 	figure.show()
 	state="visible"
 	age=0
+	zoom_dwell=0
 	appearances+=1
 
 func vanish(figure: Node3D) -> void:
 	figure.hide()
 	state="hidden"
-	cooldown=4.0
+	cooldown=7.0
 	age=0
+	zoom_dwell=0
 
 func update(delta: float, figure: Node3D, camera: Camera3D, bus: Node3D, stage: int, zoom: bool) -> void:
-	if stage_seen!=stage:
-		stage_seen=stage
-		reset_for_stage(figure)
-	if stage not in [6,7,8,9,10]:return
+	if stage not in [Story.Stage.PASSENGER,Story.Stage.NEXT_RIDE,Story.Stage.SECOND_STOP,Story.Stage.THIRD_RIDE,Story.Stage.THIRD_STOP,Story.Stage.FOURTH_RIDE,Story.Stage.FOURTH_STOP,Story.Stage.FINAL_RIDE,Story.Stage.DEER]:return
 	if state=="hidden":
 		cooldown-=delta
-		if cooldown>0 or appearances>=(3 if stage==7 else 1):return
+		if cooldown>0:return
 		var at := candidate(camera,bus,stage)
-		if at==Vector3.INF:return
-		appear(figure,at,Route.heading(at.z)+(PI/2 if bus.to_local(at).x>0 else -PI/2))
+		if at!=Vector3.INF:
+			var facing := camera.global_position-at
+			appear(figure,at,atan2(-facing.x,-facing.z)+1.25)
 		return
 	age+=delta
+	var facing := camera.global_position-figure.global_position
 	if state=="turning":
-		figure.rotation.y=lerp_angle(figure.rotation.y,destination_yaw,minf(1,delta*12))
-		if age>=.42:vanish(figure)
+		var destination_yaw := atan2(-facing.x,-facing.z)
+		figure.rotation.y=lerp_angle(starting_yaw,destination_yaw,smoothstep(0,1.9,age))
+		if age>=3.0:vanish(figure)
 		return
-	var diff := figure.global_position+Vector3(0,1.35,0)-camera.global_position
-	var aim := (-camera.global_basis.z).dot(diff.normalized())
-	# Zoom gets priority: the acknowledgement is brief, then the clearing is empty.
-	if zoom and aim>.975:
-		var facing := camera.global_position-figure.global_position
-		destination_yaw=atan2(-facing.x,-facing.z)
-		state="turning"
-		age=0
-	elif (age>.35 and aim>.997) or age>9:
-		vanish(figure)
+	var center := figure.global_position+Vector3(0,1.4,0)
+	var aim := (-camera.global_basis.z).dot((center-camera.global_position).normalized())
+	# Ordinary looking never dismisses him. A deliberate, settled zoom does.
+	if zoom and camera.fov<58 and aim>.97 and window_clear(camera,bus,center):
+		zoom_dwell+=delta
+		if zoom_dwell>=.55:
+			state="turning"
+			starting_yaw=figure.rotation.y
+			age=0
+	else:zoom_dwell=0
+	# Re-stage a missed encounter only once it is well behind and fully unseen.
+	if facing.length()>43 and not camera.is_position_in_frustum(center) and not camera.is_position_in_frustum(center+Vector3.UP):
+		var at := candidate(camera,bus,stage)
+		if at!=Vector3.INF:
+			figure.global_position=at
+			var facing_at := camera.global_position-at
+			figure.rotation.y=atan2(-facing_at.x,-facing_at.z)+1.25
+			zoom_dwell=0
 
-func reset_for_stage(figure: Node3D) -> void:
-	figure.hide()
-	state="hidden"
-	age=0
-	cooldown=1.2
-	appearances=0
-
-func candidate(camera: Camera3D, bus: Node3D, stage: int) -> Vector3:
+func candidate(camera: Camera3D, bus: Node3D, _stage: int) -> Vector3:
 	var forward := -camera.global_basis.z
 	var local_view := bus.global_basis.inverse()*forward
-	# The rear wall and floor are not windows.
-	if absf(forward.y)>.45 or (local_view.z>.5 and absf(local_view.x)<.65):return Vector3.INF
-	var points: Array[Vector3]=[]
-	if stage==7:
-		for z in range(-152,-270,-24):
-			for side in [-1,1]:points.append(Route.point(side*9,0,z))
-	else:
-		points.append(Route.point(-22,0,-145) if stage==6 else (Route.point(17,0,-284) if stage==8 else Route.point(9,0,-399)))
+	if absf(forward.y)>.5 or (local_view.z>.65 and absf(local_view.x)<.65):return Vector3.INF
 	var best := Vector3.INF
-	var best_score := -INF
-	for point in points:
-		var diff := point+Vector3(0,1.35,0)-camera.global_position
-		if diff.length()<11 or diff.length()>52:continue
-		var aim := forward.dot(diff.normalized())
-		if aim<.79 or aim>.992:continue
-		if not camera.is_position_in_frustum(point+Vector3(0,1.35,0)):continue
-		# Favor a figure just beside the center of the view, visible through a window.
-		var score := -absf(aim-.955)-diff.length()*.0005
-		if score>best_score:
-			best_score=score
-			best=point
+	var score := -INF
+	for offset in range(-32,25,4):
+		var z := bus.position.z+offset
+		if z> -120 or z< -675:continue
+		for side in [-1,1]:
+			if absf(local_view.x)>.25 and signf(local_view.x)!=side:continue
+			var point := Route.point(side*8.8,0,z)
+			var diff := point+Vector3(0,1.4,0)-camera.global_position
+			if diff.length()<9 or diff.length()>32:continue
+			var aim := forward.dot(diff.normalized())
+			if aim<.8 or not camera.is_position_in_frustum(point+Vector3(0,1.4,0)):continue
+			if not window_clear(camera,bus,point+Vector3(0,1.4,0)):continue
+			var current := -absf(aim-.965)-absf(diff.length()-17)*.004
+			if current>score:
+				score=current
+				best=point
 	return best
+
+func window_clear(camera: Camera3D, bus: Node3D, point: Vector3) -> bool:
+	var from := bus.to_local(camera.global_position)
+	if absf(from.x)>1.35 or absf(from.z)>4.55:return true
+	var direction := bus.to_local(point)-from
+	var side_t := INF
+	var front_t := INF
+	if absf(direction.x)>.001:side_t=(signf(direction.x)*1.35-from.x)/direction.x
+	if absf(direction.z)>.001:front_t=(signf(direction.z)*4.55-from.z)/direction.z
+	var hit := from+direction*minf(side_t,front_t)
+	if hit.y<1.78 or hit.y>2.88:return false
+	if front_t<side_t:return direction.z<0 and absf(hit.x)>.09 and absf(hit.x)<1.25
+	for z in [-4.55,-3.8,-2.2,-.7,.8,2.3,3.8,4.55]:
+		if absf(hit.z-z)<.13:return false
+	return true
