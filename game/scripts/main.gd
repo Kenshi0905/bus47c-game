@@ -860,7 +860,7 @@ func roadside_stop(z: float, name_text: String, figure_x: float) -> void:
 	var figure: Node3D=load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
 	add_child(figure)
 	figure.position=Vector3(figure_x,0,z-2)
-	figure.rotation.y=-PI/2 if figure_x>0 else PI/2
+	figure.rotation.y=PI/2 if figure_x>0 else -PI/2
 	light(self,figure.position+Vector3(0,2,-1),Color("b4bdaa"),.6,3)
 	stop_figures.append(figure)
 
@@ -874,7 +874,7 @@ func _physics_process(delta: float) -> void:
 		Story.Stage.NEXT_RIDE: bus.position.z=lerpf(-130,-270,smoothstep(0,30,story.elapsed))
 		Story.Stage.FINAL_RIDE: bus.position.z=lerpf(-270,-390,smoothstep(0,24,story.elapsed))
 	var travel := old_z-bus.position.z
-	for wheel in wheels: wheel.rotate_y(travel/.52)
+	for wheel in wheels: wheel.rotate_object_local(Vector3.UP,travel/.52)
 	update_door(delta)
 	board_if_inside()
 	if story.stage==Story.Stage.ARRIVING:
