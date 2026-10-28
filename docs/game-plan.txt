@@ -1,0 +1,57 @@
+BUS 47C GAME PLAN
+First playable adaptation of the supplied story
+
+Direction
+A 25-35 minute first-person low-poly horror game about a firewatcher trying to reach Loomesville on a driverless bus at 2:36 AM. Preserve the empty stop, changing faces, approaching red-tied figure, deer collision, forbidden backward glance, golden shortcut, double at home, mirror transformation, burial, closet and newspaper accusation. Two endings share most locations. All changes below are proposed adaptations, not claims about the original text.
+
+Story repairs before scripting
+1. Replace the claim that humidity causes forest fires with a recent drought or unusually dry season.
+2. The hunger passage says both staying and leaving cause starvation. Proposed resolution: the firewatcher starts exhausted after missing meals; hunger becomes a supernatural weakness during the ride. The collision creates a short opportunity to fetch fruit. Teach the task before danger begins, pause depletion during reading and menus, and provide a checkpoint before leaving. Consider replacing the numeric hunger bar with a simple weakness indicator if testing finds it distracting.
+3. Do not force five minutes of inactivity after the deer collision. Use that interval as an upper bound for exploration, with the bus ready when the fruit objective completes.
+4. Establish the no-looking-back rule in the bench note and reinforce it with a quiet warning before the first dangerous section. Define it fairly: a sustained look into a rear cone during pursuit, with a brief warning before capture. Side glances and accidental mouse movement should not instantly kill the player. Offer a forgiving setting.
+5. Seed the final arson accusation through a soot-stained ticket, a familiar ignition sound and a damaged watchtower photograph. Keep the newspaper as an accusation; decide later whether the firewatcher truly caused the fire, was framed, or is trapped in a repeating identity. The current story does not settle that question.
+6. Avoid an arbitrary forced attack on the double. Present an unmistakable attack by the double and a defensive interaction. Use the same room geometry and camera composition in both endings to connect attacker and victim.
+
+Playable sequence
+00-04 minutes: Empty stop. Read bench note, inspect work badge and route sign, hear forest insects. Bus arrives without engine approach until its headlights appear. Board after seeing the empty driver seat.
+04-12 minutes: Three short stops. Clock remains at 2:36. Inspect route chart and next-stop display. Passengers populate rear seats, initially plausible, then subtly distorted. Change faces during occlusion or a lighting transition; later allow one visible transformation. Red-tied figure moves closer at each stop. Keep each ride interval occupied by a clue or interaction.
+12-18 minutes: Deer impact. Engine stops; emergency lighting remains. Find fruit close to the road. Leaves and footsteps begin after pickup. Teach the warning and return path before activating pursuit. Reach the golden sign and choose road or bus. Save at the fork.
+18-27 minutes, walking branch: Follow the shortcut while footsteps draw closer. Reach town, follow bloody prints home, confront the hostile double. After the confrontation, three distinct mirror interactions remove facial features. Each advances an objective; do not require aimless mirror checking. Escape into the woods and arrive at the original stop in daylight with a 47C ticket. End on the route number.
+18-32 minutes, bus branch: Final unnatural ride, then reach the same house. Survive the faceless intruder through a short defensive sequence. Drag and bury the body at a clearly marked backyard location. Start the three-minute timer only after the shovel and destination are introduced. Save before the encounter; failure returns here. Hide in the closet for a designed 90-120 second sound sequence. Dawn is signalled by both light and birds. Coffee and newspaper reveal the arson accusation.
+
+Mechanics and fairness
+Walk, look, inspect, interact, short sprint, carry/drag, and hide. Use one interaction system and clear prompts. No general combat system or large inventory. Story state controls passengers, stops and endings. Record every irreversible action once. Main objectives cannot depend on seeing a scare. Do not consume hunger or burial time during pause, focus loss or loading. A restart-checkpoint option handles recovery. Offer a chapter/fork replay after completion so players can see the second ending without repeating the introduction.
+
+Art direction and current models
+Muted forest green, aged cream, cold blue glass, dirty wood and a single saturated red tie. The included eight model files contain 160 separate named mesh parts. They are editable geometric blockouts for proportion and layout, not final production assets. Import glTF into Blender and save a .blend working copy; retain untouched originals. OBJ and its shared MTL are fallback files. Y up, metre-scale.
+Included: bus shell and seats; shelter, bench and note; faceless figure; passenger; deer; house cutaway; closet and mirror; ticket, newspaper, knife and fruit.
+Next modelling pass: functional bus doorway and hinged leaves; rounded low-sided wheels; tall distinctive faceless silhouette; three passenger head variants; complete house facade and rooms; shovel, grave patch, trees, road modules, golden sign, clock, route chart, coffee mug. Add UVs only where signs or surface wear require them. Keep object pivots deliberate for doors and limbs. Create simple separate collision meshes.
+The preview images are software projections of the actual model geometry. They are not concept-art promises of a more detailed model. Glass and mirrors currently use opaque placeholder materials. Characters have no skeleton, animation or face morphs yet.
+
+Sound design
+Bus doors: pneumatic hiss, mechanism, seal impact, latch. Synchronize each sound with its animation and add three variations. Engine, wheel rumble, panel rattle and ventilation form the normal baseline. Build dread by selectively removing those familiar layers.
+Stops: brake air, door cycle, distant insect bed. Red tie figure gets a restrained electrical tone rather than a loud sting every appearance.
+Forest: near leaf movement, dry twig break, footsteps that approach without overtaking before the intended capture. Important warnings need visual/caption equivalents.
+House: duplicated footstep rhythm, door bolt, uneven breathing, mirror resonance. Closet sequence uses knocks, a familiar voice, false retreat, then a long silence. Dawn birds must be distinct from deceptive sounds.
+Music: sparse original drones and a three-note motif. No constant loud chase track. Separate music, ambience, effects and voice controls; limit startling peaks. Test headphones, mono and laptop speakers. Use original or properly licensed recordings and keep asset credits.
+
+Engine and architecture
+Use the previously selected Godot stable release, GDScript and Compatibility renderer. Keep the bus interior stationary and move outside scenery. Build reusable player, interaction, door, passenger, stop, audio-zone and checkpoint scenes. Separate narrative data from scripts so timings and text can be edited easily. Use discrete states for stop arrival, boarding, travel, collision, forest, fork and endings. Save chapter, branch, collected clues, relevant objects and settings. Do not save in the middle of an unsafe animation.
+
+Compatibility and performance
+Windows and desktop browser are first targets; test Linux and macOS separately before claiming support. Mobile needs a later control and readability pass. Use mostly baked or simple lighting, a small number of dynamic lights, compact textures and limited transparent surfaces. Web sound, pointer capture, focus loss and storage need exported-build tests early. Native offline play should not need a server. Publish minimum hardware only after measuring real machines. Aim for 60 FPS on the chosen desktop baseline and a stable 30 FPS on explicitly supported weaker devices.
+
+Production gates
+1. Story lock: confirm culpability, hunger rule, defensive encounter and ending meanings. Deliver scene script and final route map.
+2. Graybox: playable start-to-fork, working bus door, interaction and checkpoint. Export Windows and web.
+3. Representative sample: one stop with finished sound, lighting and passenger change. Test with at least three unfamiliar players.
+4. Full playable: implement both endings using placeholder models. Verify every mandatory objective and recovery path.
+5. Art and audio: refine this asset pack, rig characters, implement face changes, finish sound mix and accessibility.
+6. Release candidate: complete each branch on every claimed platform; measure performance and fix progression failures.
+Estimate: 8-12 part-time weeks is only an initial planning range; novice modelling, animation and two endings can extend it. Re-estimate after the representative sample. No deadline is established.
+
+Test matrix
+Try ignoring notes, returning to earlier stops, spamming doors, standing in moving doors, looking away from events, running ahead, collecting fruit early, looking sideways during pursuit, pausing every timer, quitting at the fork, reloading during burial, opening the closet at each stage, disconnecting a controller and disabling audio. Verify low frame rates do not change pursuit rules. Test missing/corrupt saves and unavailable browser storage. Provide subtitles, rebindable controls, sensitivity/FOV controls, optional head bob and reduced flashes.
+
+Definition of done
+Both endings complete without coaching; no known progression blockers; checkpoints restore valid states; sounds remain intelligible at ordinary volume; objectives stay readable in dark scenes; claimed platforms pass exported-build tests. The current deliverable is the plan and editable model blockouts, not a playable game.

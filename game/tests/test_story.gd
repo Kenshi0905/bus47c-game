@@ -1,0 +1,25 @@
+extends SceneTree
+const Story = preload("res://scripts/story.gd")
+func _initialize() -> void:
+	var s = Story.new()
+	assert(not s.interact("door"), "Cannot board before reading note")
+	assert(s.interact("note"))
+	assert(not s.interact("note"), "Repeated interaction must not skip stage")
+	assert(not s.tick(6.9))
+	assert(s.tick(0.2))
+	assert(s.interact("door"))
+	assert(s.checkpoint() == Story.Stage.CAB)
+	assert(s.interact("driver"))
+	assert(s.interact("clock"))
+	assert(not s.tick(15.0))
+	assert(s.tick(1.1))
+	assert(s.interact("passenger"))
+	assert(not s.interact("passenger"))
+	for bad in [-8, 900, "corrupt", {}, null]:
+		s.restore(bad)
+		assert(s.stage == Story.Stage.STOP)
+	for valid in [0, 2, 3, 6]:
+		s.restore(valid)
+		assert(s.stage == valid)
+	print("PASS: progression, idempotency, timers, checkpoint validation")
+	quit()
