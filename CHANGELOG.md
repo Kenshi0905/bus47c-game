@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+- Horror title menu based on an editable Canva layout: distressed Bus 47C vector logo, brush selection, condensed text, subtle film grain and quiet original ambience.
+- Menu uses the live game scene. Removed the illustrated backdrop, location header, subtitle and menu clock line following review.
+- Working controls, credits, settings, keyboard focus and Escape/back navigation; separate title camera preserves player position.
+- Dense seeded forest: 3,588 trees and 9,383 bushes/grass clumps, rendered in 104 spatial batches with distance culling.
+- Shelter, boarding area and stop-figure sightlines remain clear; road and windshield stay readable.
+- Watcher tie emits red with restrained local spill on the shirt; source character meshes remain editable.
+- Added menu navigation/camera checks alongside the existing full chapter physics/progression tests.
+
 ## 0.2.0
 - Correct forward approach from 65 metres away, headlights, turning wheels and actual travel along a fixed road.
 - Real doorway aperture, hinged twin doors, working collision and physical walk-on boarding.

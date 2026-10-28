@@ -1,0 +1,37 @@
+BUS 47C — EDITABLE MENU / VERSION 0.3.0
+
+Editable Canva design:
+https://canva.link/d8ya37n55tculnv
+
+The menu was designed in Canva and re-created as native Godot controls over
+the live 3D scene. The generated illustrative background is not a game asset.
+Following user review, the location kicker, subtitle and menu clock line were
+removed. The actual in-game dashboard clock remains part of the story.
+
+Figma was attempted first in Ashmit Avash's team. Its Starter-plan tool quota
+blocked design work after the blank file was created. The editable design is
+therefore in Canva, the user's permitted alternative.
+
+EDIT THE GAME
+game/assets/ui/bus47c-logo.svg — editable outlined letters, weathering mask
+and bus emblem. Open in a vector editor; no raster backdrop is baked in.
+game/assets/ui/selection-brush.svg — selected/focused menu brush.
+game/assets/ui/menu_atmosphere.gdshader — title-only vignette and film grain.
+game/scripts/main.gd — menu choices, layout, title camera, tie emission.
+game/scripts/forest.gd — tree shapes, densities, seeded layout and clearings.
+
+tools/make_menu_art.py regenerates both SVG files with Python + fonttools.
+The font is bundled at game/assets/ui/fonts/BebasNeue-Regular.ttf with its
+SIL Open Font License in OFL.txt. Source: google/fonts, ofl/bebasneue.
+Editing an SVG directly is supported; regeneration overwrites those edits.
+
+Forest meshes are generated from shared low-poly shapes. Chunks are 50 m
+long on each side of the road, with 165 m tree and 80 m understory culling.
+The current chapter does not yet include off-road forest exploration.
+
+VALIDATION
+Windows Godot 4.7.2 import, story tests and scene smoke checks pass.
+Rendered title, settings, doorway, windshield, passengers, deer and watcher
+views are recorded in docs/v0.3-*.png. The smoke checks cover menu back/focus,
+camera handoff, forest clearings, physical boarding, closed-door collision,
+footstep gating, bus travel/pause and chapter completion.

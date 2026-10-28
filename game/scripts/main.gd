@@ -1,11 +1,17 @@
 extends Node3D
 const Story = preload("res://scripts/story.gd")
 const Player = preload("res://scripts/player.gd")
+const Forest = preload("res://scripts/forest.gd")
+const MENU_FONT = preload("res://assets/ui/fonts/BebasNeue-Regular.ttf")
 const SAVE := "user://checkpoint.json"
 var story = Story.new()
 var player: CharacterBody3D
 var bus: Node3D
-var trees: Array[Node3D] = []
+var forest: Node3D
+var menu_chrome: Control
+var menu_camera: Camera3D
+var menu_is_pause := false
+var menu_page := "title"
 var targets: Dictionary = {}
 var passenger: Node3D
 var watcher: Node3D
@@ -43,6 +49,7 @@ var engine: AudioStreamPlayer
 var drone: AudioStreamPlayer
 var sfx: AudioStreamPlayer
 var footsteps: AudioStreamPlayer
+var menu_ambience: AudioStreamPlayer
 var material_cache: Dictionary = {}
 var view_width := 1280.0
 
@@ -55,6 +62,11 @@ func _ready() -> void:
 	bus.position.z=0
 	player.position=Vector3(8,.1,-10)
 	player.camera.look_at(Vector3(0,1.8,-1))
+	menu_camera = Camera3D.new()
+	add_child(menu_camera)
+	menu_camera.position = Vector3(8, 1.95, -11.8)
+	menu_camera.fov = 57
+	menu_camera.look_at(Vector3(3.5, 2.1, -1))
 	show_menu(false)
 	if "--smoke" in OS.get_cmdline_user_args(): call_deferred("smoke_test")
 	if "--capture" in OS.get_cmdline_user_args(): call_deferred("capture_preview")
@@ -154,28 +166,8 @@ func _build_world() -> void:
 		for x in [-5.1,2.9]:
 			block(self,Vector3(x,.4,z),Vector3(.07,.8,.07),"77877b")
 			block(self,Vector3(x,.72,z),Vector3(.09,.1,.09),"bdac73",false,true)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 470236
-	for i in range(650):
-		var tree := Node3D.new()
-		add_child(tree)
-		var side := -1 if i % 2 == 0 else 1
-		tree.position = Vector3(side*rng.randf_range(8,48),0,rng.randf_range(-550,100))
-		var height := rng.randf_range(4.5,10)
-		block(tree,Vector3(0,height*0.35,0),Vector3(.22,height*.7,.22),"343831")
-		for tier in range(3):
-			var crown := MeshInstance3D.new()
-			var cone := CylinderMesh.new()
-			cone.top_radius = 0
-			cone.bottom_radius = (2.4-tier*.5)*height/8
-			cone.height = height*.5
-			cone.radial_segments = 5
-			crown.mesh = cone
-			crown.visibility_range_end=105
-			crown.material_override = mat("20372b" if i%3 else "2b4031")
-			tree.add_child(crown)
-			crown.position.y = height*(.45+tier*.19)
-		trees.append(tree)
+	forest = Forest.new()
+	add_child(forest)
 	_build_shelter()
 	_build_bus()
 	player = Player.new()
@@ -188,6 +180,7 @@ func _build_world() -> void:
 	watcher.position = Vector3(-8,0,-10)
 	watcher.rotation.y = PI/2
 	watcher.visible = false
+	add_tie_glow(watcher)
 	roadside_stop(-133,"MILL ROAD",-5.0)
 	roadside_stop(-273,"OLD QUARRY",3.4)
 	deer=load("res://assets/deer.gltf").instantiate()
@@ -327,6 +320,7 @@ func _build_audio() -> void:
 	drone = audio("drone",-24,true)
 	sfx = audio("door",-9,false)
 	footsteps = audio("step",-14,false)
+	menu_ambience = audio("drone",-31,true)
 
 func audio(file: String, volume: float, looped: bool) -> AudioStreamPlayer:
 	var a := AudioStreamPlayer.new()
@@ -355,28 +349,50 @@ func label(value: String, size: int, color: Color = Color("ded8c7")) -> Label:
 
 func button(value: String, callback: Callable) -> Button:
 	var b := Button.new()
-	b.text=value
-	b.custom_minimum_size.y=49
-	b.alignment=HORIZONTAL_ALIGNMENT_LEFT
-	b.add_theme_font_size_override("font_size",18)
-	for state in ["normal","hover","pressed","focus"]:
-		var style := StyleBoxFlat.new()
-		style.bg_color=Color("213630") if state in ["hover","focus"] else Color("122321")
-		style.border_color=Color("c4ab78") if state in ["hover","focus"] else Color("40534a")
-		style.border_width_bottom=1
-		style.border_width_left=3 if state in ["hover","focus"] else 0
-		style.content_margin_left=18
-		style.content_margin_right=18
-		b.add_theme_stylebox_override(state,style)
-	b.add_theme_color_override("font_color",Color("dcd6c1"))
+	b.text = value
+	b.custom_minimum_size.y = 38
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.add_theme_font_override("font", MENU_FONT)
+	b.add_theme_font_size_override("font_size", 26)
+	var normal := StyleBoxEmpty.new()
+	normal.content_margin_left = 17
+	normal.content_margin_right = 17
+	b.add_theme_stylebox_override("normal", normal)
+	for state in ["hover", "pressed", "focus"]:
+		var brush := StyleBoxTexture.new()
+		brush.texture = preload("res://assets/ui/selection-brush.svg")
+		brush.content_margin_left = 17
+		brush.content_margin_right = 17
+		b.add_theme_stylebox_override(state, brush)
+	b.add_theme_color_override("font_color", Color("bbb9af"))
+	for state in ["hover", "pressed", "focus"]:
+		b.add_theme_color_override("font_" + state + "_color", Color("151a18"))
+	b.mouse_entered.connect(func(): b.grab_focus())
 	b.pressed.connect(callback)
 	return b
+
+func focus_first() -> void:
+	for child in menu_box.get_children():
+		if child is Button:
+			child.grab_focus()
+			break
+
+func menu_heading(value: String) -> void:
+	var heading := label(value, 42, Color("e3decd"))
+	heading.add_theme_font_override("font", MENU_FONT)
+	menu_box.add_child(heading)
+
+func menu_spacer(height: float) -> void:
+	var gap := Control.new()
+	gap.custom_minimum_size.y = height
+	menu_box.add_child(gap)
 
 
 func panel_style() -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
-	s.bg_color=Color(.025,.055,.05,.96)
-	s.border_color=Color("a99465")
+	s.bg_color=Color(.025,.035,.033,.97)
+	s.border_color=Color("8d3530")
 	s.border_width_left=2
 	s.content_margin_left=34
 	s.content_margin_right=34
@@ -395,7 +411,10 @@ func _build_ui() -> void:
 	menu_shade=ColorRect.new()
 	root.add_child(menu_shade)
 	menu_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	menu_shade.color=Color(0,.025,.025,.45)
+	menu_shade.color=Color.WHITE
+	var atmosphere := ShaderMaterial.new()
+	atmosphere.shader = preload("res://assets/ui/menu_atmosphere.gdshader")
+	menu_shade.material = atmosphere
 	menu_shade.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	hud = Control.new()
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -431,12 +450,24 @@ func _build_ui() -> void:
 	help.position = Vector2(32,679)
 	menu = PanelContainer.new()
 	root.add_child(menu)
-	menu.position = Vector2(64,48)
-	menu.custom_minimum_size = Vector2(450,570)
-	menu.add_theme_stylebox_override("panel",panel_style())
+	menu.position = Vector2(65,62)
+	menu.custom_minimum_size = Vector2(360, 0)
+	menu.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	menu_box = VBoxContainer.new()
-	menu_box.add_theme_constant_override("separation",10)
+	menu_box.add_theme_constant_override("separation",4)
 	menu.add_child(menu_box)
+	menu_chrome = Control.new()
+	root.add_child(menu_chrome)
+	menu_chrome.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu_chrome.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var footer := label("HEADPHONES RECOMMENDED", 17, Color("9d5149"))
+	footer.add_theme_font_override("font", MENU_FONT)
+	menu_chrome.add_child(footer)
+	footer.position = Vector2(66, 666)
+	var version := label("CHAPTER 01   /   v0.3.0", 16, Color("9d9f94"))
+	version.add_theme_font_override("font", MENU_FONT)
+	menu_chrome.add_child(version)
+	version.position = Vector2(1070, 666)
 	modal_panel = PanelContainer.new()
 	root.add_child(modal_panel)
 	modal_panel.position = Vector2(310,155)
@@ -453,34 +484,61 @@ func clear_box(box_ui: VBoxContainer) -> void:
 		child.queue_free()
 
 func show_menu(is_pause: bool) -> void:
-	paused=true
-	for sound in [ambience,engine,drone,sfx,footsteps]:sound.stream_paused=true
-	player.enabled=false
-	Input.mouse_mode=Input.MOUSE_MODE_VISIBLE
+	paused = true
+	menu_is_pause = is_pause
+	menu_page = "title"
+	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = true
+	player.enabled = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if not is_pause:
+		menu_camera.make_current()
+		if not menu_ambience.playing: menu_ambience.play()
 	menu.show()
+	menu_chrome.show()
 	menu_shade.show()
 	hud.hide()
 	clear_box(menu_box)
-	menu_box.add_child(label("LOOMESVILLE TRANSIT AUTHORITY",13,Color("9dbaac")))
-	menu_box.add_child(label("47C",88,Color("e3cf9c")))
-	menu_box.add_child(label("THE LAST SERVICE",20))
-	menu_box.add_child(label("A way home. At any cost.",16,Color("98a69a")))
-	var line := HSeparator.new()
-	menu_box.add_child(line)
-	if is_pause:menu_box.add_child(button("RESUME JOURNEY",resume_game))
-	elif FileAccess.file_exists(SAVE):menu_box.add_child(button("CONTINUE JOURNEY",continue_game))
-	menu_box.add_child(button("NEW JOURNEY",func():start_game(0)))
-	if is_pause:menu_box.add_child(button("RESTART CHECKPOINT",continue_game))
-	menu_box.add_child(button("SETTINGS",func():show_settings(is_pause)))
-	menu_box.add_child(button("QUIT",quit_cleanly))
-	menu_box.add_child(label("CHAPTER 01   /   NIGHT SHIFT\nv0.2.0     •     Headphones recommended",13,Color("82998c")))
+	var logo := TextureRect.new()
+	logo.texture = preload("res://assets/ui/bus47c-logo.svg")
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.custom_minimum_size = Vector2(360, 140)
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	menu_box.add_child(logo)
+	menu_spacer(24)
+	if is_pause: menu_box.add_child(button("RESUME JOURNEY", resume_game))
+	elif FileAccess.file_exists(SAVE): menu_box.add_child(button("CONTINUE JOURNEY", continue_game))
+	menu_box.add_child(button("NEW JOURNEY" if is_pause or FileAccess.file_exists(SAVE) else "START JOURNEY", func(): start_game(0)))
+	if is_pause: menu_box.add_child(button("RESTART CHECKPOINT", continue_game))
+	menu_box.add_child(button("HOW TO PLAY", func(): show_information("controls", is_pause)))
+	menu_box.add_child(button("SETTINGS", func(): show_settings(is_pause)))
+	if not is_pause: menu_box.add_child(button("CREDITS", func(): show_information("credits", is_pause)))
+	menu_box.add_child(button("EXIT", quit_cleanly))
+	focus_first()
+
+func show_information(page: String, is_pause: bool) -> void:
+	menu_page = page
+	clear_box(menu_box)
+	menu_heading("HOW TO PLAY" if page == "controls" else "CREDITS")
+	menu_spacer(12)
+	var copy := "WASD   Move\nMOUSE   Look\nE   Inspect / read\nSHIFT   Walk faster\nESC   Pause / back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
+	if page == "credits":
+		copy = "BUS 47C\nStory & direction — Ashmit Avash\n\nA game built in Godot\nMenu design — Canva + original vectors\nFont — Bebas Neue / SIL OFL\n\nFootstep references\nEffecism / Kerma T.C.\nEdited for this private prototype.\n\nChapter one is a work in progress."
+	var body := label(copy, 18, Color("bebfb5"))
+	menu_box.add_child(body)
+	menu_spacer(18)
+	menu_box.add_child(button("BACK", func(): show_menu(is_pause)))
+	focus_first()
 
 
 func resume_game() -> void:
 	paused = false
+	menu_ambience.stop()
 	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = false
 	menu.hide()
+	menu_chrome.hide()
 	menu_shade.hide()
+	player.camera.make_current()
 	hud.show()
 	player.enabled = not modal
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if modal else Input.MOUSE_MODE_CAPTURED
@@ -626,6 +684,9 @@ func apply_stage(save: bool = true) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("pause_game") and paused and menu_page != "title":
+		show_menu(menu_is_pause)
+		return
 	if event.is_action_pressed("pause_game") and running:
 		if modal: close_note()
 		elif paused: resume_game()
@@ -678,7 +739,7 @@ func finish_slice() -> void:
 	menu_box.add_child(button("QUIT",quit_cleanly))
 
 func quit_cleanly() -> void:
-	for sound in [ambience, engine, drone, sfx, footsteps]:
+	for sound in [ambience, engine, drone, sfx, footsteps, menu_ambience]:
 		sound.stream_paused = false
 		sound.stop()
 		sound.stream = null
@@ -687,7 +748,31 @@ func quit_cleanly() -> void:
 
 func smoke_test() -> void:
 	get_tree().create_timer(25).timeout.connect(func():get_tree().quit(2))
+	# Exercise real menu actions and Escape without starting or changing a save.
+	assert(menu_camera.current and not player.enabled)
+	assert(get_viewport().gui_get_focus_owner() is Button)
+	for page in ["HOW TO PLAY", "CREDITS", "SETTINGS"]:
+		for control in menu_box.get_children():
+			if control is Button and control.text == page:
+				control.pressed.emit()
+				break
+		assert(menu_page != "title" and paused)
+		await get_tree().process_frame
+		var escape := InputEventKey.new()
+		escape.keycode = KEY_ESCAPE
+		escape.physical_keycode = KEY_ESCAPE
+		escape.pressed = true
+		Input.parse_input_event(escape)
+		await get_tree().process_frame
+		escape.pressed = false
+		Input.parse_input_event(escape)
+		assert(menu_page == "title" and not running)
+		assert(get_viewport().gui_get_focus_owner() is Button)
+	assert(forest.tree_count > 3000 and forest.batches <= 104)
+	assert(not forest.in_clearing(-20, -80))
+	assert(forest.in_clearing(6, 0) and forest.in_clearing(7, -133))
 	start_game(0)
+	assert(player.camera.current and not menu_chrome.visible and not menu_ambience.playing)
 	assert(targets.size()==7)
 	player.position=Vector3(5,.25,1.5)
 	player.camera.look_at(Vector3(5.35,.95,-.45))
@@ -744,6 +829,9 @@ func smoke_test() -> void:
 	var paused_z := bus.position.z
 	await get_tree().create_timer(.2).timeout
 	assert(is_equal_approx(bus.position.z,paused_z))
+	show_settings(true)
+	assert(menu_page == "settings" and paused and not player.enabled)
+	show_menu(true)
 	resume_game()
 	assert(story.tick(26))
 	apply_stage(false)
@@ -766,38 +854,57 @@ func smoke_test() -> void:
 	apply_stage(false)
 	finish_slice()
 	assert(paused)
-	print("PASS: approach, physical boarding, hinged door collision, moving platform, pause, seated passengers, two stops and deer")
+	print("PASS: menu navigation/back/focus, camera handoff, forest clearings, approach, physical boarding, doors, moving platform, pause, seated passengers, two stops and deer")
 	quit_cleanly()
 
 
 func capture_preview() -> void:
 	await get_tree().create_timer(.6).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.2-menu.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-menu.png")
+	# Real game scenery for the editable menu reference; no illustrated backdrop.
+	menu.hide()
+	menu_chrome.hide()
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../work/menu-scene.png")
+	menu.show()
+	menu_chrome.show()
+	show_settings(false)
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-settings.png")
+	show_menu(false)
 	start_game(Story.Stage.BOARD)
 	set_door(true,true)
 	player.position=Vector3(4,.1,-5.3)
 	player.camera.look_at(Vector3(1.3,1.6,-3))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.2-door.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-door.png")
 	start_game(Story.Stage.SECOND_STOP)
 	player.position=Vector3(0,.8,-2.5)
 	player.camera.look_at(bus.to_global(Vector3(0,1.8,-18)))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.2-road.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-road.png")
 	player.position=Vector3(0,.8,.4)
 	player.camera.look_at(bus.to_global(Vector3(.4,1.7,3.1)))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.2-passengers.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-passengers.png")
 	start_game(Story.Stage.DEER)
 	player.position=Vector3(.2,.8,-3.1)
 	player.camera.look_at(Vector3(.3,.4,-397))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.2-deer.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-deer.png")
+	start_game(Story.Stage.SECOND_STOP)
+	player.position=Vector3(.3,.8,-4)
+	player.camera.look_at(stop_figures[1].global_position+Vector3(0,1.45,0))
+	await get_tree().create_timer(.5).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-watcher.png")
+	print("Forest: ",forest.tree_count," trees, ",forest.understory_count," understory instances, ",forest.batches," batches")
 	print("Rendered frame rate: ",Engine.get_frames_per_second())
 	quit_cleanly()
 
@@ -862,6 +969,7 @@ func roadside_stop(z: float, name_text: String, figure_x: float) -> void:
 	figure.position=Vector3(figure_x,0,z-2)
 	figure.rotation.y=PI/2 if figure_x>0 else -PI/2
 	light(self,figure.position+Vector3(0,2,-1),Color("b4bdaa"),.6,3)
+	add_tie_glow(figure)
 	stop_figures.append(figure)
 
 
@@ -883,8 +991,10 @@ func _physics_process(delta: float) -> void:
 	else: engine.volume_db=-22
 
 func show_settings(is_pause: bool) -> void:
+	menu_page = "settings"
 	clear_box(menu_box)
-	menu_box.add_child(label("JOURNEY SETTINGS",28,Color("dfc99c")))
+	menu_heading("SETTINGS")
+	menu_spacer(12)
 	menu_box.add_child(label("Master volume",18))
 	var volume := HSlider.new()
 	volume.min_value=0
@@ -892,6 +1002,7 @@ func show_settings(is_pause: bool) -> void:
 	volume.step=.02
 	volume.value=db_to_linear(AudioServer.get_bus_volume_db(0))
 	volume.value_changed.connect(func(v: float):AudioServer.set_bus_volume_db(0,linear_to_db(maxf(v,.001))))
+	volume.custom_minimum_size.y = 28
 	menu_box.add_child(volume)
 	menu_box.add_child(label("Mouse sensitivity",18))
 	var sensitivity := HSlider.new()
@@ -900,6 +1011,7 @@ func show_settings(is_pause: bool) -> void:
 	sensitivity.step=.0002
 	sensitivity.value=player.sensitivity
 	sensitivity.value_changed.connect(func(v: float):player.sensitivity=v)
+	sensitivity.custom_minimum_size.y = 28
 	menu_box.add_child(sensitivity)
 	menu_box.add_child(label("Field of view",18))
 	var fov := HSlider.new()
@@ -907,6 +1019,23 @@ func show_settings(is_pause: bool) -> void:
 	fov.max_value=95
 	fov.value=player.camera.fov
 	fov.value_changed.connect(func(v:float):player.camera.fov=v)
+	fov.custom_minimum_size.y = 28
 	menu_box.add_child(fov)
-	menu_box.add_child(label("WASD    Move\nMOUSE    Look\nE    Inspect\nSHIFT    Walk faster\nESC    Pause\n\nBoard by walking through the open doors.",18))
+	menu_spacer(16)
+	menu_box.add_child(label("Changes apply immediately.\nUse arrow keys to adjust sliders.",17,Color("a8aaa0")))
 	menu_box.add_child(button("BACK",func():show_menu(is_pause)))
+	volume.grab_focus()
+
+
+func add_tie_glow(figure: Node3D) -> void:
+	var tie := figure.find_child("red_tie*", true, false) as MeshInstance3D
+	if tie == null: return
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = Color("b72e29")
+	glow.roughness = .8
+	glow.cull_mode = BaseMaterial3D.CULL_DISABLED
+	glow.emission_enabled = true
+	glow.emission = Color("cd2923")
+	glow.emission_energy_multiplier = 1.25
+	tie.material_override = glow
+	light(figure, Vector3(0,1.45,-.18), Color("d6342c"), .13, .48)
