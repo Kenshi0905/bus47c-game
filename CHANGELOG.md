@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+- Three-spoke steering wheel and column, with steering corrections while the bus moves.
+- All ten empty passenger seats support E to sit, free mouse look and Space to stand safely in the aisle. Occupied seats cannot overlap the player.
+- Passengers arrive outside the camera view, walk with animated mesh limbs, wait beside a seat and switch to sitting only when unseen. Taking an empty reserved seat reroutes its approaching passenger.
+- Doors open at both route stops. Departure waits for a minimum dwell, arriving passengers, the player aboard and fully closed doors. Doorway obstruction reopens the doors; stepping out and boarding again is supported.
+- Soft drifting mist among bushes and trees using a Compatibility-renderer shader.
+- Paper inspection notes, Tab-accessible shift notes, brief objective hints and fewer thought subtitles. Optional sound descriptions are off by default.
+- One distant red-tie watcher advances through five positions only outside view, starting over 20 metres off the road.
+- Expanded checks cover all seats, input/footstep suppression while sitting, unseen appearance/pose changes, stop doors, disembarking, steering and watcher visibility.
+
 ## 0.3.0
 - Horror title menu based on an editable Canva layout: distressed Bus 47C vector logo, brush selection, condensed text, subtle film grain and quiet original ambience.
 - Menu uses the live game scene. Removed the illustrated backdrop, location header, subtitle and menu clock line following review.

@@ -2,6 +2,7 @@ extends Node3D
 const Story = preload("res://scripts/story.gd")
 const Player = preload("res://scripts/player.gd")
 const Forest = preload("res://scripts/forest.gd")
+const Passengers = preload("res://scripts/bus_passengers.gd")
 const MENU_FONT = preload("res://assets/ui/fonts/BebasNeue-Regular.ttf")
 const SAVE := "user://checkpoint.json"
 var story = Story.new()
@@ -24,7 +25,19 @@ var ramp_collider: CollisionShape3D
 var boarding_ramp: Node3D
 var steps_node: Node3D
 var seated_passengers: Array[Node3D] = []
-var stop_figures: Array[Node3D] = []
+var passengers: Node3D
+var seats: Array[Vector3] = []
+var seated_index := -1
+var steering: Node3D
+var departure_id := ""
+var watcher_phase := 0
+var objective_time := 0.0
+var objective_panel: PanelContainer
+var subtitle_frame: PanelContainer
+var controls_hint: Label
+var modal_kind := ""
+var sound_captions := false
+var thought_subtitles := true
 var next_stop_label: Label3D
 var deer: Node3D
 var menu_shade: ColorRect
@@ -72,7 +85,7 @@ func _ready() -> void:
 	if "--capture" in OS.get_cmdline_user_args(): call_deferred("capture_preview")
 
 func _setup_inputs() -> void:
-	var keys := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "sprint": KEY_SHIFT, "interact": KEY_E, "pause_game": KEY_ESCAPE}
+	var keys := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "sprint": KEY_SHIFT, "interact": KEY_E, "pause_game": KEY_ESCAPE, "stand": KEY_SPACE, "notes": KEY_TAB}
 	for action in keys:
 		if not InputMap.has_action(action): InputMap.add_action(action)
 		var event := InputEventKey.new()
@@ -177,12 +190,13 @@ func _build_world() -> void:
 	player.footstep.connect(footfall)
 	watcher = load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
 	add_child(watcher)
-	watcher.position = Vector3(-8,0,-10)
+	watcher.position = Vector3(-22,0,-145)
 	watcher.rotation.y = PI/2
-	watcher.visible = false
+	watcher.visible = true
 	add_tie_glow(watcher)
-	roadside_stop(-133,"MILL ROAD",-5.0)
-	roadside_stop(-273,"OLD QUARRY",3.4)
+	light(watcher, Vector3(0,2,-1),Color("7f9b9d"),.4,3)
+	roadside_stop(-133,"MILL ROAD")
+	roadside_stop(-273,"OLD QUARRY")
 	deer=load("res://assets/deer.gltf").instantiate()
 	add_child(deer)
 	deer.position=Vector3(.3,.33,-397)
@@ -237,8 +251,9 @@ func _build_bus() -> void:
 			wheel.rotation.z=PI/2
 			wheels.append(wheel)
 		for z in [-1.9,-.65,.6,1.85,3.1]:
+			seats.append(Vector3(side*.87,.78,z))
 			block(bus,Vector3(side*.87,1.12,z),Vector3(.68,.17,.65),"526359",true)
-			block(bus,Vector3(side*.87,1.58,z+.3),Vector3(.7,.95,.13),"46584f",true)
+			block(bus,Vector3(side*.87,1.51,z+.3),Vector3(.7,.8,.13),"46584f",true)
 			block(bus,Vector3(side*.87,.89,z),Vector3(.1,.4,.3),"6d7470")
 	block(bus,Vector3(0,1.15,-4.55),Vector3(2.7,.8,.12),"b8b5a0",true)
 	glass(bus,Vector3(0,2.25,-4.55),Vector3(2.55,1.35,.025))
@@ -261,7 +276,7 @@ func _build_bus() -> void:
 	block(bus,Vector3(-.65,1.13,-3.5),Vector3(.65,.2,.6),"393f3b",true)
 	block(bus,Vector3(-.65,1.55,-3.2),Vector3(.65,.85,.14),"393f3b",true)
 	block(bus,Vector3(0,1.4,-4.12),Vector3(2.2,.2,.5),"252e2d",true)
-	block(bus,Vector3(-.65,1.66,-3.85),Vector3(.4,.05,.3),"171f20")
+	build_steering_wheel()
 	block(bus,Vector3(.48,1.63,-3.95),Vector3(.38,.18,.08),"111c1d")
 	var clock := text3(bus,"02:36",Vector3(.48,1.65,-3.9),30,Color("d6b67b"))
 	clock.pixel_size=.002
@@ -303,15 +318,12 @@ func _build_bus() -> void:
 	targets["clock"]=[bus,Vector3(.48,1.65,-3.9)]
 	targets["route"]=[bus,Vector3(0,2.9,-4.38)]
 	targets["deer"]=[bus,Vector3(0,1.9,-4.45)]
-	var models := ["01_grinning_clerk","03_long_neck_worker","04_crooked_passenger"]
-	for i in range(3):
-		var person: Node3D=load("res://assets/characters/"+models[i]+"_seated.gltf").instantiate()
-		bus.add_child(person)
-		person.position=Vector3(.87 if i%2==0 else -.87,.77,3.1 if i<2 else 1.85)
-		person.visible=false
-		seated_passengers.append(person)
-	passenger=seated_passengers[0]
-	targets["passenger"]=[bus,Vector3(.87,1.9,3.1)]
+	passengers = Passengers.new()
+	bus.add_child(passengers)
+	passengers.configure(seats)
+	passenger = passengers.first_actor()
+	for actor in passengers.actors: seated_passengers.append(actor.seated)
+	targets["passenger"]=[passenger,Vector3(0,1.1,0)]
 
 
 func _build_audio() -> void:
@@ -420,34 +432,46 @@ func _build_ui() -> void:
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(hud)
-	var heading := label("47C  /  NIGHT SHIFT",14,Color("c8b68b"))
-	hud.add_child(heading)
-	heading.position = Vector2(32,24)
-	objective = label("",18)
-	hud.add_child(objective)
-	objective.position = Vector2(32,55)
-	clock_label = label("NIGHT SERVICE",14,Color("c8b68b"))
-	hud.add_child(clock_label)
-	clock_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	clock_label.position = Vector2(1110,28)
-	prompt = label("",22)
+	objective_panel = PanelContainer.new()
+	hud.add_child(objective_panel)
+	objective_panel.position = Vector2(32,586)
+	objective_panel.custom_minimum_size = Vector2(360,50)
+	var thought_style := StyleBoxFlat.new()
+	thought_style.bg_color = Color(.025,.035,.03,.72)
+	thought_style.border_color = Color("8c8d77")
+	thought_style.border_width_left = 1
+	thought_style.content_margin_left = 14
+	thought_style.content_margin_right = 14
+	thought_style.content_margin_top = 10
+	thought_style.content_margin_bottom = 10
+	objective_panel.add_theme_stylebox_override("panel",thought_style)
+	objective = label("",17,Color("c2c4b9"))
+	objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	objective_panel.add_child(objective)
+	prompt = label("",18,Color("d4d5ca"))
 	hud.add_child(prompt)
-	prompt.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	prompt.position = Vector2(400,420)
-	prompt.size = Vector2(480,50)
+	prompt.position = Vector2(360,522)
+	prompt.size = Vector2(560,35)
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var reticle := label("·",32,Color("d5cfb5"))
+	var reticle := label("·",26,Color("d5cfb5"))
 	hud.add_child(reticle)
-	reticle.position = Vector2(635,340)
-	subtitle = label("",22)
-	hud.add_child(subtitle)
-	subtitle.position = Vector2(190,595)
-	subtitle.size = Vector2(900,80)
+	reticle.position = Vector2(636,342)
+	subtitle_frame = PanelContainer.new()
+	hud.add_child(subtitle_frame)
+	subtitle_frame.position = Vector2(300,601)
+	subtitle_frame.custom_minimum_size = Vector2(680,54)
+	var caption_style := thought_style.duplicate()
+	caption_style.border_width_left = 0
+	caption_style.bg_color = Color(0,0,0,.58)
+	subtitle_frame.add_theme_stylebox_override("panel",caption_style)
+	subtitle = label("",21,Color("e7e7dc"))
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var help := label("WASD  Move     E  Inspect     Shift  Walk faster     Esc  Pause",16,Color("a9b1a7"))
-	hud.add_child(help)
-	help.position = Vector2(32,679)
+	subtitle_frame.add_child(subtitle)
+	subtitle_frame.hide()
+	controls_hint = label("TAB   Shift notes",14,Color("999e93"))
+	hud.add_child(controls_hint)
+	controls_hint.position = Vector2(32,676)
 	menu = PanelContainer.new()
 	root.add_child(menu)
 	menu.position = Vector2(65,62)
@@ -464,15 +488,25 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("CHAPTER 01   /   v0.3.0", 16, Color("9d9f94"))
+	var version := label("CHAPTER 01   /   v0.4.0", 16, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(1070, 666)
 	modal_panel = PanelContainer.new()
 	root.add_child(modal_panel)
-	modal_panel.position = Vector2(310,155)
-	modal_panel.custom_minimum_size = Vector2(660,350)
-	modal_panel.add_theme_stylebox_override("panel",panel_style())
+	modal_panel.position = Vector2(350,80)
+	modal_panel.custom_minimum_size = Vector2(580,520)
+	var paper := StyleBoxFlat.new()
+	paper.bg_color = Color("c6bfa7")
+	paper.border_color = Color("8a8068")
+	paper.set_border_width_all(2)
+	paper.content_margin_left = 35
+	paper.content_margin_right = 35
+	paper.content_margin_top = 30
+	paper.content_margin_bottom = 26
+	paper.shadow_color = Color(0,0,0,.7)
+	paper.shadow_size = 18
+	modal_panel.add_theme_stylebox_override("panel",paper)
 	modal_box = VBoxContainer.new()
 	modal_box.add_theme_constant_override("separation",18)
 	modal_panel.add_child(modal_box)
@@ -521,7 +555,7 @@ func show_information(page: String, is_pause: bool) -> void:
 	clear_box(menu_box)
 	menu_heading("HOW TO PLAY" if page == "controls" else "CREDITS")
 	menu_spacer(12)
-	var copy := "WASD   Move\nMOUSE   Look\nE   Inspect / read\nSHIFT   Walk faster\nESC   Pause / back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
+	var copy := "WASD   Move\nMOUSE   Look\nE   Inspect / sit\nSPACE   Stand up\nTAB   Shift notes\nSHIFT   Walk faster\nESC   Pause / back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
 	if page == "credits":
 		copy = "BUS 47C\nStory & direction — Ashmit Avash\n\nA game built in Godot\nMenu design — Canva + original vectors\nFont — Bebas Neue / SIL OFL\n\nFootstep references\nEffecism / Kerma T.C.\nEdited for this private prototype.\n\nChapter one is a work in progress."
 	var body := label(copy, 18, Color("bebfb5"))
@@ -549,8 +583,17 @@ func start_game(checkpoint: int) -> void:
 	modal=false
 	modal_panel.hide()
 	reveal_delay=-1
-	for p in seated_passengers:p.visible=false
-	watcher.visible=false
+	departure_id=""
+	seated_index=-1
+	player.set_seated(false,Vector3.ZERO)
+	var restored := 3 if checkpoint>=Story.Stage.SECOND_STOP else (1 if checkpoint>=Story.Stage.PASSENGER else 0)
+	passengers.reset(restored)
+	watcher_phase = 3 if checkpoint>=Story.Stage.DEER else (1 if checkpoint>=Story.Stage.SECOND_STOP else 0)
+	watcher.position = Vector3(9,0,-399) if watcher_phase==3 else (Vector3(17,0,-284) if watcher_phase==1 else Vector3(-22,0,-145))
+	watcher.visible=true
+	subtitle.text=""
+	subtitle_frame.hide()
+	caption_time=0
 	deer.visible=false
 	player.velocity=Vector3.ZERO
 	player.camera.rotation=Vector3.ZERO
@@ -592,110 +635,145 @@ func save_checkpoint() -> void:
 	var err := DirAccess.rename_absolute(path+".tmp",path)
 	if err != OK: say("Checkpoint storage unavailable.",4)
 
-func say(value: String, duration: float = 5.0) -> void:
+func say(value: String, duration: float = 4.0, essential: bool = false) -> void:
+	if not thought_subtitles and not essential: return
 	subtitle.text = value
 	caption_time = duration
+	subtitle_frame.modulate.a = 0
+	subtitle_frame.show()
 
-func show_note() -> void:
+func describe_sound(value: String) -> void:
+	if sound_captions: say("[" + value + "]",3,true)
+
+func set_objective(value: String) -> void:
+	objective.text = value
+	objective_time = 4.5
+
+func paper_label(value: String, size: int) -> Label:
+	var text := label(value,size,Color("2f342f"))
+	text.add_theme_color_override("font_shadow_color",Color.TRANSPARENT)
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return text
+
+func show_document(kind: String) -> void:
 	modal = true
+	hud.hide()
+	modal_kind = kind
 	player.enabled = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	modal_panel.show()
 	clear_box(modal_box)
-	modal_box.add_child(label("A NOTE ON THE BENCH",26,Color("dfc99c")))
-	var body := label("Firewatch relief service\n\n47C is the last bus to Loomesville.\nThe driver will not answer you. Board anyway.\n\nIf you hear someone behind you in the forest,\nkeep walking. Do not look back.",22)
-	modal_box.add_child(body)
-	modal_box.add_child(button("Fold the note  [E]",close_note))
+	var title := paper_label("47C  /  RELIEF SERVICE" if kind=="note" else "SHIFT NOTES",30)
+	title.add_theme_font_override("font",MENU_FONT)
+	modal_box.add_child(title)
+	modal_box.add_child(paper_label("LOOMESVILLE FORESTRY DIVISION",12))
+	modal_box.add_child(HSeparator.new())
+	var copy := "47C is the last bus to Loomesville.\n\nThe driver will not answer you.\nBoard anyway.\n\nIf you hear someone behind you in the forest, keep walking.\n\nDo not look back."
+	if kind=="journal": copy = "End of shift. Get home.\n\n" + objective.text + "\n\nRoute\nMill Road — Old Quarry — Loomesville\n\nEmpty seats are available.\nE to sit. Space to stand."
+	modal_box.add_child(paper_label(copy,21))
+	var close := button("FOLD NOTE  [E]" if kind=="note" else "CLOSE NOTES  [TAB]",close_document)
+	close.add_theme_color_override("font_color",Color("30382f"))
+	modal_box.add_child(close)
+	close.grab_focus()
 
-func close_note() -> void:
+func show_note() -> void:
+	show_document("note")
+
+func close_document() -> void:
+	var was_note := modal_kind=="note"
 	modal = false
+	modal_kind = ""
 	modal_panel.hide()
-	player.enabled = true
+	player.enabled = not paused
+	hud.visible = not paused
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	if story.interact("note"): apply_stage()
+	if was_note and story.interact("note"): apply_stage()
 
 func apply_stage(save: bool = true) -> void:
 	match story.stage:
 		Story.Stage.STOP:
-			objective.text="Read the note on the bench."
-			say("My shift ended an hour ago. There should have been someone here.")
+			set_objective("There's a note on the shelter bench.")
 		Story.Stage.ARRIVING:
-			objective.text="Look down the road. Your bus is approaching."
+			set_objective("Wait for the last bus.")
 			engine.play()
-			say("[An engine approaches from down the road]",6)
+			describe_sound("An engine approaches")
 		Story.Stage.BOARD:
 			bus.position.z=0
-			objective.text="Walk up the steps and through the open door."
+			set_objective("Board through the open doors.")
 			set_door(true)
-			say("[Air brakes release. Both doors swing open.]")
+			describe_sound("Air brakes release")
 		Story.Stage.CAB:
 			bus.position.z=0
 			set_door(false)
-			objective.text="Inspect the empty driver's seat."
+			set_objective("Check the driver's seat.")
 			engine.play()
-			say("[The doors close behind you]")
 		Story.Stage.CLOCK:
-			objective.text="Read the small clock on the dashboard."
-			say("No driver. The engine is still running.")
+			set_objective("Look at the dashboard clock.")
+			say("No driver.",3)
 		Story.Stage.RIDING:
-			objective.text="Next stop: Mill Road. Watch the road and windows."
+			set_objective("Find a seat. Mill Road is next.")
 			next_stop_label.text="NEXT  /  MILL ROAD"
 			set_door(false)
-			say("02:36. The clock hasn't moved.")
+			say("Still 02:36.",3)
 			drone.play()
 		Story.Stage.PASSENGER:
 			bus.position.z=-130
-			passenger.visible=true
-			objective.text="Inspect the passenger seated at the back."
-			next_stop_label.text="MILL ROAD  /  STOPPING"
+			passengers.request_count(1)
+			set_objective("Look around the bus.")
+			next_stop_label.text="MILL ROAD"
 			play_sound("chime")
-			say("[Stop chime]  That seat was empty.",7)
+			set_door(true)
 			engine.play()
 			drone.play()
 		Story.Stage.NEXT_RIDE:
-			objective.text="Next stop: Old Quarry. Keep an eye on the roadside."
+			set_objective("Old Quarry is next.")
 			next_stop_label.text="NEXT  /  OLD QUARRY"
-			say("The passenger's eyes follow you. Outside, someone is waiting.",6)
 		Story.Stage.SECOND_STOP:
 			bus.position.z=-270
-			for p in seated_passengers:p.visible=true
-			next_stop_label.text="OLD QUARRY  /  STOPPING"
-			objective.text="More passengers. Check the next-stop sign above the windshield."
+			passengers.request_count(3)
+			next_stop_label.text="OLD QUARRY"
+			set_objective("Check the route sign above the windshield.")
 			play_sound("chime")
-			say("[Stop chime]  The figure is closer to the road this time.",7)
+			set_door(true)
 		Story.Stage.FINAL_RIDE:
 			next_stop_label.text="NEXT  /  LOOMESVILLE"
-			objective.text="Loomesville should be next. Watch ahead."
-			say("Nobody has said a word.")
+			set_objective("Loomesville should be next.")
 		Story.Stage.DEER:
 			bus.position.z=-390
 			deer.visible=true
-			for p in seated_passengers:p.visible=true
 			engine.stop()
 			play_sound("impact")
 			next_stop_label.text="SERVICE INTERRUPTED"
-			objective.text="Look through the windshield. Inspect what is on the road."
-			say("[A heavy impact. Brakes hiss. The engine cuts out.]")
+			set_objective("Look through the windshield.")
+			describe_sound("Impact. Brakes hiss")
 		Story.Stage.FINISHED:
-			objective.text="A deer lies in the headlights. The forest is silent."
-			say("Something moved between the trees. I need to get off this bus.",6)
+			set_objective("Something is in the trees.")
+			say("I need to get off this bus.",4)
 			reveal_delay=6
 	if save:save_checkpoint()
 
+
+func _input(event: InputEvent) -> void:
+	if running and not paused and event.is_action_pressed("notes"):
+		if modal:close_document()
+		else:show_document("journal")
+		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause_game") and paused and menu_page != "title":
 		show_menu(menu_is_pause)
 		return
 	if event.is_action_pressed("pause_game") and running:
-		if modal: close_note()
+		if modal: close_document()
 		elif paused: resume_game()
 		else: show_menu(true)
-	if event.is_action_pressed("interact") and running and not paused:
-		if modal: close_note()
+	if not running or paused: return
+	if event.is_action_pressed("stand") and not modal: stand_up()
+	if event.is_action_pressed("interact"):
+		if modal: close_document()
 		elif current_target == "note": show_note()
-		elif current_target=="door": say("Walk up the steps. The door is open.")
-		elif story.interact(current_target): apply_stage()
+		elif current_target.begins_with("seat:"): sit_down(int(current_target.get_slice(":",1)))
+		elif current_target != "door": request_interaction(current_target)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and running and not paused and not modal:
@@ -703,29 +781,47 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	if not running or paused or modal:return
-	if story.tick(delta):apply_stage()
+	var moving_stage: bool = story.stage in [Story.Stage.RIDING,Story.Stage.NEXT_RIDE,Story.Stage.FINAL_RIDE]
+	if not moving_stage or can_drive():
+		if story.tick(delta):apply_stage()
 	if story.stage==Story.Stage.FINAL_RIDE and story.elapsed>19:deer.visible=true
+	objective_time=maxf(0,objective_time-delta)
+	objective_panel.visible=objective_time>0 and caption_time<=0
+	objective_panel.modulate.a=minf(1,objective_time)
 	if caption_time>0:
-		caption_time-=delta
-		if caption_time<=0:subtitle.text=""
+		caption_time=maxf(0,caption_time-delta)
+		subtitle_frame.modulate.a=move_toward(subtitle_frame.modulate.a,minf(1,caption_time*3),delta*5)
+		if caption_time<=0:subtitle_frame.hide()
+	controls_hint.text="SPACE   Stand up     TAB   Shift notes" if seated_index>=0 else "TAB   Shift notes"
 	if reveal_delay>=0:
 		reveal_delay-=delta
 		if reveal_delay<0:finish_slice()
 	update_target()
 
-
 func update_target() -> void:
 	current_target=""
 	var expected := {0:"note",2:"door",3:"driver",4:"clock",6:"passenger",8:"route",10:"deer"}
 	var id: String=expected.get(story.stage,"")
+	if id=="passenger" and not passengers.first_visible():id=""
 	if not id.is_empty():
 		var data: Array=targets[id]
 		var point: Vector3=data[0].to_global(data[1])
 		var diff: Vector3=point-player.camera.global_position
 		var look: Vector3=-player.camera.global_transform.basis.z
-		if diff.length()<(3.2 if id=="door" else 2.5) and look.dot(diff.normalized())>.78:current_target=id
-	var names := {"note":"Read note","door":"Walk through the open door","driver":"Inspect empty seat","clock":"Read dashboard clock","passenger":"Inspect seated passenger","route":"Read next stop","deer":"Inspect the road"}
-	prompt.text=("WASD  /  " if current_target=="door" else "[ E ]  ")+names[current_target] if not current_target.is_empty() else ""
+		if diff.length()<(3.2 if id=="door" else 2.5) and look.dot(diff.normalized())>.88:current_target=id
+	if current_target.is_empty() and seated_index<0 and player.get_parent()==bus:
+		var best := .88
+		for i in range(seats.size()):
+			if not passengers.can_sit(i):continue
+			var diff: Vector3=bus.to_global(seats[i]+Vector3(0,.45,0))-player.camera.global_position
+			var aim: float=(-player.camera.global_transform.basis.z).dot(diff.normalized())
+			if diff.length()<1.9 and aim>best:
+				best=aim
+				current_target="seat:"+str(i)
+	var names := {"note":"Read note","door":"Board the bus","driver":"Check driver's seat","clock":"Read clock","passenger":"Look at passenger","route":"Read route sign","deer":"Look outside"}
+	if current_target.begins_with("seat:"):prompt.text="E   Sit down"
+	elif not current_target.is_empty():prompt.text=("WALK  /  " if current_target=="door" else "E   ")+names[current_target]
+	else:prompt.text=""
 
 
 func finish_slice() -> void:
@@ -747,7 +843,7 @@ func quit_cleanly() -> void:
 	get_tree().quit()
 
 func smoke_test() -> void:
-	get_tree().create_timer(25).timeout.connect(func():get_tree().quit(2))
+	get_tree().create_timer(45).timeout.connect(func():get_tree().quit(2))
 	# Exercise real menu actions and Escape without starting or changing a save.
 	assert(menu_camera.current and not player.enabled)
 	assert(get_viewport().gui_get_focus_owner() is Button)
@@ -833,20 +929,123 @@ func smoke_test() -> void:
 	assert(menu_page == "settings" and paused and not player.enabled)
 	show_menu(true)
 	resume_game()
+	# Every empty passenger seat must be reachable by the interaction ray.
+	for index in range(seats.size()):
+		player.position=Vector3(0,.8,seats[index].z-.15)
+		player.camera.look_at(bus.to_global(seats[index]+Vector3(0,.45,0)))
+		update_target()
+		assert(current_target=="seat:"+str(index),"Empty seat must be selectable")
+		sit_down(index)
+		await get_tree().physics_frame
+		assert(player.seated and passengers.owners[index]==-2)
+		var seated_position := player.position
+		steps_before=step_index
+		Input.action_press("forward")
+		await get_tree().physics_frame
+		assert(player.position.is_equal_approx(seated_position) and step_index==steps_before)
+		Input.action_release("forward")
+		stand_up()
+		await get_tree().physics_frame
+		assert(not player.seated and passengers.owners[index]==-1)
+	# Notes open/close through the actual Tab event; reading them pauses progress.
+	var tab := InputEventKey.new()
+	tab.physical_keycode=KEY_TAB
+	tab.keycode=KEY_TAB
+	tab.pressed=true
+	Input.parse_input_event(tab.duplicate())
+	Input.flush_buffered_events()
+	await get_tree().process_frame
+	assert(modal and modal_kind=="journal", "Tab state: modal=%s paused=%s running=%s" % [modal,paused,running])
+	var elapsed_before: float=story.elapsed
+	_process(1)
+	assert(story.elapsed==elapsed_before)
+	tab.pressed=false
+	Input.parse_input_event(tab.duplicate())
+	tab.pressed=true
+	Input.parse_input_event(tab.duplicate())
+	Input.flush_buffered_events()
+	await get_tree().process_frame
+	assert(not modal)
+	tab.pressed=false
+	Input.parse_input_event(tab.duplicate())
 	assert(story.tick(26))
 	apply_stage(false)
-	assert(passenger.visible)
-	player.position=Vector3(0,.8,2)
-	player.camera.look_at(bus.to_global(Vector3(.87,1.9,3.1)))
+	assert(not passenger.visible,"Arrivals must not pop into a watched seat")
+	set_door(true,true)
+	assert(door_collider.disabled and not ramp_collider.disabled)
+	passengers.update(.01,player.camera,player.position,false)
+	var reserved: int=passengers.actors[0].seat
+	sit_down(reserved)
+	assert(seated_index==reserved and passengers.actors[0].seat!=reserved,"Passenger must give an empty reserved seat to the player")
+	player.camera.look_at(bus.to_global(Vector3(-20,1.6,player.position.z)))
+	passengers.update(.1,player.camera,player.position,true)
+	assert(passenger.visible and not passengers.actor_watched(0,player.camera),"Spawn must be outside camera view")
+	var arrival_position: Vector3=passenger.position
+	passengers.update(.1,player.camera,player.position,true)
+	assert(passenger.position.distance_to(arrival_position)>0,"Passenger must actually walk")
+	for frame in range(350):
+		passengers.update(.05,player.camera,player.position,true)
+		if passengers.actors[0].state=="waiting":break
+	assert(passengers.actors[0].state=="waiting")
+	player.camera.look_at(passenger.global_position+Vector3(0,1.1,0))
+	passengers.update(1,player.camera,player.position,true)
+	assert(passengers.actors[0].state=="waiting","No pose swap while watched")
+	player.camera.look_at(bus.to_global(Vector3(-20,1.6,player.position.z)))
+	passengers.update(.1,player.camera,player.position,true)
+	assert(passengers.actors[0].state=="seated")
+	assert(not passengers.can_sit(passengers.actors[0].seat),"Occupied seats cannot overlap the player")
+	stand_up()
+	player.camera.look_at(passenger.global_position+Vector3(0,1.1,0))
 	update_target()
 	assert(current_target=="passenger")
-	assert(story.interact("passenger"))
-	apply_stage(false)
+	request_interaction("passenger")
+	story.elapsed=5
+	# A player in the doorway or outside keeps the stop open and stationary.
+	player.position=Vector3(1.2,.8,-3)
+	set_door(false)
+	update_door(.1)
+	assert(door_goal==1 and door_amount>.98,"Closing doors must reopen around a player")
+	process_departure()
+	assert(door_goal==1 and story.stage==Story.Stage.PASSENGER)
+	player.position=Vector3(2.4,.4,-3)
+	board_if_inside()
+	assert(player.get_parent()==self)
+	process_departure()
+	assert(door_goal==1 and story.stage==Story.Stage.PASSENGER)
+	player.global_position=bus.to_global(Vector3(.3,.8,-3))
+	board_if_inside()
+	assert(player.get_parent()==bus)
+	await get_tree().create_timer(1.6).timeout
+	assert(story.stage==Story.Stage.NEXT_RIDE and door_amount<.01 and not door_collider.disabled)
+	story.elapsed=8
+	_physics_process(.2)
+	assert(absf(steering.rotation.y)>.001,"Steering wheel must turn while driving")
 	assert(story.tick(30.1))
 	apply_stage(false)
-	assert(seated_passengers[1].visible and seated_passengers[2].visible)
-	assert(story.interact("route"))
-	apply_stage(false)
+	assert(door_goal==1)
+	set_door(true,true)
+	sit_down(0)
+	player.camera.look_at(bus.to_global(Vector3(0,1.7,-20)))
+	for frame in range(1000):passengers.update(.05,player.camera,player.position,true)
+	assert(passengers.all_aboard() and passengers.actors[2].state=="seated")
+	# Looking at the watcher must hold it in its distant position.
+	watcher_phase=1
+	watcher.position=Vector3(17,0,-284)
+	story.elapsed=8
+	player.camera.look_at(watcher.global_position+Vector3(0,1.1,0))
+	update_watcher()
+	assert(watcher_phase==1)
+	player.camera.look_at(bus.to_global(Vector3(-30,1.8,0)))
+	update_watcher()
+	assert(watcher_phase==2 and watcher.position.x==12)
+	caption_time=0
+	set_objective("Wait here.")
+	_process(5)
+	assert(not objective_panel.visible,"Objective hints should fade away")
+	request_interaction("route")
+	await get_tree().create_timer(1.6).timeout
+	assert(story.stage==Story.Stage.FINAL_RIDE and door_amount<.01)
+
 	assert(story.tick(24.1))
 	apply_stage(false)
 	assert(deer.visible)
@@ -854,14 +1053,14 @@ func smoke_test() -> void:
 	apply_stage(false)
 	finish_slice()
 	assert(paused)
-	print("PASS: menu navigation/back/focus, camera handoff, forest clearings, approach, physical boarding, doors, moving platform, pause, seated passengers, two stops and deer")
+	print("PASS: menus, notes, ten seats, stand/footsteps, unseen arrivals, walking, unseen seating, watcher gaze, stop doors, obstruction, disembark/reboard, steering, ride and deer")
 	quit_cleanly()
 
 
 func capture_preview() -> void:
 	await get_tree().create_timer(.6).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-menu.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-menu.png")
 	# Real game scenery for the editable menu reference; no illustrated backdrop.
 	menu.hide()
 	menu_chrome.hide()
@@ -872,7 +1071,7 @@ func capture_preview() -> void:
 	show_settings(false)
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-settings.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-settings.png")
 	show_menu(false)
 	start_game(Story.Stage.BOARD)
 	set_door(true,true)
@@ -880,30 +1079,65 @@ func capture_preview() -> void:
 	player.camera.look_at(Vector3(1.3,1.6,-3))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-door.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-door.png")
 	start_game(Story.Stage.SECOND_STOP)
 	player.position=Vector3(0,.8,-2.5)
 	player.camera.look_at(bus.to_global(Vector3(0,1.8,-18)))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-road.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-road.png")
 	player.position=Vector3(0,.8,.4)
 	player.camera.look_at(bus.to_global(Vector3(.4,1.7,3.1)))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-passengers.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-passengers.png")
 	start_game(Story.Stage.DEER)
 	player.position=Vector3(.2,.8,-3.1)
 	player.camera.look_at(Vector3(.3,.4,-397))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-deer.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-deer.png")
 	start_game(Story.Stage.SECOND_STOP)
 	player.position=Vector3(.3,.8,-4)
-	player.camera.look_at(stop_figures[1].global_position+Vector3(0,1.45,0))
+	player.camera.look_at(watcher.global_position+Vector3(0,1.45,0))
 	await get_tree().create_timer(.5).timeout
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.3-watcher.png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-watcher.png")
+	objective_time=0
+	caption_time=0
+	start_game(Story.Stage.CAB)
+	player.position=Vector3(.1,.8,-2.95)
+	player.camera.look_at(bus.to_global(Vector3(-.65,1.76,-3.78)))
+	await get_tree().create_timer(.4).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-steering.png")
+	show_document("note")
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-note.png")
+	close_document()
+	show_document("journal")
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-notes.png")
+	close_document()
+	start_game(Story.Stage.PASSENGER)
+	passengers.reset()
+	passengers.request_count(1)
+	set_door(true,true)
+	sit_down(3)
+	player.camera.look_at(bus.to_global(Vector3(-20,1.8,2)))
+	for frame in range(65):passengers.update(.1,player.camera,player.position,true)
+	stand_up()
+	player.position=Vector3(0,.8,2.3)
+	player.camera.position.y=1.57
+	player.camera.look_at(passenger.global_position+Vector3(0,1.1,0))
+	await get_tree().create_timer(.4).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-walking.png")
+	sit_down(3)
+	player.camera.look_at(watcher.global_position+Vector3(0,1.4,0))
+	await get_tree().create_timer(.5).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.4-seated-view.png")
 	print("Forest: ",forest.tree_count," trees, ",forest.understory_count," understory instances, ",forest.batches," batches")
 	print("Rendered frame rate: ",Engine.get_frames_per_second())
 	quit_cleanly()
@@ -919,29 +1153,47 @@ func glass(parent: Node3D, pos: Vector3, size: Vector3) -> MeshInstance3D:
 
 
 func set_door(opened: bool, instant: bool = false) -> void:
-	door_goal=1.0 if opened else 0.0
-	if instant: door_amount=door_goal
-	if not instant: play_sound("door")
-	update_door(0)
+	var desired := 1.0 if opened else 0.0
+	if is_equal_approx(door_goal,desired) and not instant:return
+	door_goal=desired
+	if instant:
+		door_amount=door_goal
+		update_door(0)
+	else:
+		play_sound("door")
+		describe_sound("Doors open" if opened else "Doors close")
 
+func at_stop() -> bool:
+	return story.stage in [Story.Stage.BOARD,Story.Stage.PASSENGER,Story.Stage.SECOND_STOP]
+
+func doorway_occupied() -> bool:
+	var at := bus.to_local(player.global_position)
+	return at.x>.65 and at.x<2.2 and at.z>-4 and at.z<-2 and at.y<1.1
+
+func player_aboard() -> bool:
+	return player.get_parent()==bus and player.position.y>.65 and absf(player.position.x)<1.3
+
+func can_drive() -> bool:
+	return door_amount<.01 and door_goal==0 and player_aboard()
 
 func update_door(delta: float) -> void:
+	if door_goal==0 and door_amount>.01 and doorway_occupied():set_door(true)
 	door_amount=move_toward(door_amount,door_goal,delta*.8)
 	door_hinges[0].rotation.y=-door_amount*PI*.48
 	door_hinges[1].rotation.y=door_amount*PI*.48
 	door_collider.disabled=door_amount>.98
-	var boarding: bool = story.stage==Story.Stage.BOARD
-	ramp_collider.disabled=not boarding
-	steps_node.visible=boarding
-
+	var open_stop := door_amount>.05
+	ramp_collider.disabled=not open_stop
+	steps_node.visible=open_stop
 
 func board_if_inside() -> void:
-	if story.stage!=Story.Stage.BOARD or door_amount<.98: return
+	if story.stage==Story.Stage.ARRIVING or door_amount<.98:return
 	var local := bus.to_local(player.global_position)
-	if local.x<.65 and local.x>-.2 and local.z>-3.8 and local.z<-2.2 and local.y>.65:
+	if player.get_parent()==bus and local.x>1.65:
+		player.reparent(self,true)
+	elif player.get_parent()!=bus and local.x<.65 and local.x>-.2 and local.z>-3.8 and local.z<-2.2 and local.y>.65:
 		player.reparent(bus,true)
-		story.interact("door")
-		apply_stage()
+		if story.stage==Story.Stage.BOARD and story.interact("door"):apply_stage()
 
 
 func footfall() -> void:
@@ -953,7 +1205,7 @@ func footfall() -> void:
 	footsteps.play()
 
 
-func roadside_stop(z: float, name_text: String, figure_x: float) -> void:
+func roadside_stop(z: float, name_text: String) -> void:
 	var stop := Node3D.new()
 	add_child(stop)
 	stop.position=Vector3(4.6,0,z)
@@ -964,29 +1216,28 @@ func roadside_stop(z: float, name_text: String, figure_x: float) -> void:
 	name_label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 	block(stop,Vector3(0,.6,1),Vector3(2,.15,.5),"625b43")
 	light(stop,Vector3(0,2.8,0),Color("8eaea3"),1.3,6)
-	var figure: Node3D=load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
-	add_child(figure)
-	figure.position=Vector3(figure_x,0,z-2)
-	figure.rotation.y=PI/2 if figure_x>0 else -PI/2
-	light(self,figure.position+Vector3(0,2,-1),Color("b4bdaa"),.6,3)
-	add_tie_glow(figure)
-	stop_figures.append(figure)
 
 
 func _physics_process(delta: float) -> void:
 	if not running or paused or modal: return
-	var old_z := bus.position.z
-	match story.stage:
-		Story.Stage.ARRIVING: bus.position.z=lerpf(65,0,smoothstep(0,12,story.elapsed))
-		Story.Stage.RIDING: bus.position.z=lerpf(0,-130,smoothstep(0,26,story.elapsed))
-		Story.Stage.NEXT_RIDE: bus.position.z=lerpf(-130,-270,smoothstep(0,30,story.elapsed))
-		Story.Stage.FINAL_RIDE: bus.position.z=lerpf(-270,-390,smoothstep(0,24,story.elapsed))
-	var travel := old_z-bus.position.z
-	for wheel in wheels: wheel.rotate_object_local(Vector3.UP,travel/.52)
+	passengers.update(delta,player.camera,bus.to_local(player.global_position),door_amount>.98)
+	if not at_stop() and door_goal==1 and player_aboard() and not doorway_occupied():set_door(false)
 	update_door(delta)
 	board_if_inside()
-	if story.stage==Story.Stage.ARRIVING:
-		engine.volume_db=lerpf(-35,-15,1.0-bus.position.z/65.0)
+	process_departure()
+	update_watcher()
+	var old_z := bus.position.z
+	if story.stage==Story.Stage.ARRIVING:bus.position.z=lerpf(65,0,smoothstep(0,12,story.elapsed))
+	elif can_drive():
+		match story.stage:
+			Story.Stage.RIDING: bus.position.z=lerpf(0,-130,smoothstep(0,26,story.elapsed))
+			Story.Stage.NEXT_RIDE: bus.position.z=lerpf(-130,-270,smoothstep(0,30,story.elapsed))
+			Story.Stage.FINAL_RIDE: bus.position.z=lerpf(-270,-390,smoothstep(0,24,story.elapsed))
+	var travel := old_z-bus.position.z
+	for wheel in wheels: wheel.rotate_object_local(Vector3.UP,travel/.52)
+	var turn := sin(-bus.position.z*.045)*.3+sin(-bus.position.z*.12)*.08 if absf(travel)>.001 else 0.0
+	steering.rotation.y=lerp_angle(steering.rotation.y,turn,minf(1,delta*3))
+	if story.stage==Story.Stage.ARRIVING:engine.volume_db=lerpf(-35,-15,1.0-bus.position.z/65.0)
 	elif absf(travel)>.001: engine.volume_db=-15
 	else: engine.volume_db=-22
 
@@ -1023,6 +1274,16 @@ func show_settings(is_pause: bool) -> void:
 	menu_box.add_child(fov)
 	menu_spacer(16)
 	menu_box.add_child(label("Changes apply immediately.\nUse arrow keys to adjust sliders.",17,Color("a8aaa0")))
+	var thoughts := CheckButton.new()
+	thoughts.text="Thought subtitles"
+	thoughts.button_pressed=thought_subtitles
+	thoughts.toggled.connect(func(value: bool):thought_subtitles=value)
+	menu_box.add_child(thoughts)
+	var sounds := CheckButton.new()
+	sounds.text="Sound descriptions"
+	sounds.button_pressed=sound_captions
+	sounds.toggled.connect(func(value: bool):sound_captions=value)
+	menu_box.add_child(sounds)
 	menu_box.add_child(button("BACK",func():show_menu(is_pause)))
 	volume.grab_focus()
 
@@ -1039,3 +1300,95 @@ func add_tie_glow(figure: Node3D) -> void:
 	glow.emission_energy_multiplier = 1.25
 	tie.material_override = glow
 	light(figure, Vector3(0,1.45,-.18), Color("d6342c"), .13, .48)
+
+func build_steering_wheel() -> void:
+	block(bus,Vector3(-.65,1.47,-3.98),Vector3(.09,.48,.09),"454d49").rotation.x=.65
+	var mount := Node3D.new()
+	bus.add_child(mount)
+	mount.position=Vector3(-.65,1.76,-3.78)
+	mount.rotation.x=deg_to_rad(65)
+	steering=Node3D.new()
+	mount.add_child(steering)
+	var rim := MeshInstance3D.new()
+	var ring := TorusMesh.new()
+	ring.inner_radius=.245
+	ring.outer_radius=.285
+	ring.rings=20
+	ring.ring_segments=6
+	rim.mesh=ring
+	rim.material_override=mat("131b1a")
+	steering.add_child(rim)
+	for i in range(3):
+		var angle := i*TAU/3
+		var spoke := block(steering,Vector3(sin(angle)*.14,0,cos(angle)*.14),Vector3(.035,.03,.27),"818879")
+		spoke.rotation.y=angle
+	var hub := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius=.074
+	cylinder.bottom_radius=.074
+	cylinder.height=.055
+	cylinder.radial_segments=10
+	hub.mesh=cylinder
+	hub.material_override=mat("313e37")
+	steering.add_child(hub)
+
+func sit_down(index: int) -> void:
+	if seated_index>=0 or not player_aboard() or not passengers.claim_player_seat(index):return
+	seated_index=index
+	player.set_seated(true,seats[index]+Vector3(0,0,-.08))
+	player.rotation.y=0
+	player.camera.rotation.x=0
+	current_target=""
+
+func stand_up() -> void:
+	if seated_index<0:return
+	for offset in [-.12,-.65,.6]:
+		var at := Vector3(0,.8,clampf(seats[seated_index].z+offset,-2.6,3.8))
+		var blocked := false
+		for actor in passengers.actors:
+			var other: Vector3=actor.node.position
+			if actor.node.visible and Vector2(other.x-at.x,other.z-at.z).length()<.55:blocked=true
+		if blocked:continue
+		passengers.release_player_seat(seated_index)
+		seated_index=-1
+		player.set_seated(false,at)
+		return
+	say("The aisle is blocked.",2)
+
+func request_interaction(id: String) -> void:
+	if id.is_empty():return
+	if story.stage==Story.Stage.PASSENGER and id=="passenger":
+		if not passengers.first_visible():return
+		if departure_id.is_empty():
+			say("I didn't see you get on.",3)
+			set_objective("Find a seat. Keep the aisle clear for boarding.")
+		departure_id=id
+	elif story.stage==Story.Stage.SECOND_STOP and id=="route":
+		if departure_id.is_empty():set_objective("Find a seat. Keep the aisle clear for boarding.")
+		departure_id=id
+	elif story.interact(id):apply_stage()
+
+func process_departure() -> void:
+	if departure_id.is_empty():return
+	if story.elapsed<4 or not player_aboard() or doorway_occupied() or not passengers.all_aboard():
+		set_door(true)
+		return
+	set_door(false)
+	if door_amount<.01:
+		var id := departure_id
+		departure_id=""
+		if story.interact(id):apply_stage()
+
+func update_watcher() -> void:
+	var phase := watcher_phase
+	if story.stage>=Story.Stage.NEXT_RIDE:phase=maxi(phase,1)
+	if story.stage==Story.Stage.SECOND_STOP and story.elapsed>7:phase=maxi(phase,2)
+	if story.stage==Story.Stage.FINAL_RIDE and story.elapsed>8:phase=maxi(phase,3)
+	if story.stage>=Story.Stage.DEER and story.elapsed>4:phase=maxi(phase,4)
+	var positions := [Vector3(-22,0,-145),Vector3(17,0,-284),Vector3(12,0,-280),Vector3(9,0,-399),Vector3(6.5,0,-397)]
+	if phase!=watcher_phase:
+		var destination: Vector3=positions[phase]
+		if not passengers.watched(player.camera,watcher.global_position+Vector3(0,1.15,0)) and not passengers.watched(player.camera,destination+Vector3(0,1.15,0)):
+			watcher.position=destination
+			watcher_phase=phase
+	watcher.rotation.y=PI/2 if watcher.position.x>0 else -PI/2

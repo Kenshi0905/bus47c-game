@@ -3,10 +3,13 @@ var camera: Camera3D
 var enabled := false
 var sensitivity := 0.0022
 var step_distance := 0.0
+var seated := false
+var collider: CollisionShape3D
 signal footstep
 
 func _ready() -> void:
 	var shape := CollisionShape3D.new()
+	collider = shape
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.23
 	capsule.height = 1.7
@@ -27,6 +30,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	if not enabled: return
+	camera.position.y = move_toward(camera.position.y, 1.28 if seated else 1.57, delta * 1.8)
+	if seated:
+		velocity = Vector3.ZERO
+		return
 	var input := Input.get_vector("left", "right", "forward", "back")
 	var direction := transform.basis * Vector3(input.x, 0, input.y)
 	var speed := 1.8 if not Input.is_action_pressed("sprint") else 2.8
@@ -44,3 +51,10 @@ func _physics_process(delta: float) -> void:
 			footstep.emit()
 	elif input.length() < .1:
 		step_distance = 0.0
+
+func set_seated(value: bool, at: Vector3) -> void:
+	seated = value
+	position = at
+	velocity = Vector3.ZERO
+	step_distance = 0.0
+	collider.set_deferred("disabled", value)

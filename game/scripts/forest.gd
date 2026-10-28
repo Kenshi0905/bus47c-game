@@ -34,6 +34,7 @@ func _ready() -> void:
 					else: understory_count += 1
 			for kind in range(4):
 				add_batch(meshes[kind], transforms[kind], center_z, 165.0 if kind < 2 else 80.0, rng)
+	add_mist()
 
 func in_clearing(x: float, z: float) -> bool:
 	# Preserve the shelter, boarding approach, stop signs and watcher sightlines.
@@ -41,7 +42,27 @@ func in_clearing(x: float, z: float) -> bool:
 	for stop_z in [-133.0, -273.0]:
 		if x > 2.5 and x < 10.5 and absf(z - stop_z) < 8: return true
 		if x < -4 and x > -9 and absf(z - stop_z + 2) < 3: return true
+	# Narrow gaps reveal the distant watcher between trunks rather than at the curb.
+	for line in [[Vector2(0,-130),Vector2(-22,-145)], [Vector2(0,-270),Vector2(17,-284)], [Vector2(0,-270),Vector2(12,-280)], [Vector2(0,-390),Vector2(9,-399)]]:
+		var closest := Geometry2D.get_closest_point_to_segment(Vector2(x,z),line[0],line[1])
+		if closest.distance_to(Vector2(x,z)) < 2.6: return true
 	return false
+
+func add_mist() -> void:
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2(14, 2.8)
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://assets/ui/ground_mist.gdshader")
+	mesh.material = material
+	for z in range(-540, 100, 16):
+		for side in [-1, 1]:
+			for layer in range(2):
+				var mist := MeshInstance3D.new()
+				mist.mesh = mesh
+				mist.position = Vector3(side * (10.5 + layer * 10 + sin(float(z)) * 2), .9 + sin(z * .13) * .32 + layer * .28, z + layer * 7)
+				mist.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				mist.visibility_range_end = 110
+				add_child(mist)
 
 func add_batch(mesh: ArrayMesh, transforms: Array, z: float, distance: float, rng: RandomNumberGenerator) -> void:
 	if transforms.is_empty(): return
