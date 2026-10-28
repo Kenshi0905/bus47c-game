@@ -45,6 +45,7 @@ var title_time := 0.0
 var retro_filter: ColorRect
 var paper_surface: ColorRect
 var objective_time := 0.0
+var objective_persistent := false
 var objective_panel: PanelContainer
 var subtitle_frame: PanelContainer
 var controls_hint: Label
@@ -239,8 +240,17 @@ func _build_shelter() -> void:
 	block(shelter,Vector3(0,.67,-.5),Vector3(2.8,.15,.55),"6e5e45",true)
 	block(shelter,Vector3(0,1.05,-.75),Vector3(2.8,.6,.1),"6e5e45",true)
 	block(shelter,Vector3(.35,.755,-.45),Vector3(.36,.015,.26),"d8cba2")
-	text3(shelter,"LOOMESVILLE FOREST",Vector3(0,2.35,-.88),28)
-	text3(shelter,"LAST SERVICE  /  47C",Vector3(0,2.08,-.88),22)
+	# A physical transit plaque with a separate route badge.
+	block(shelter,Vector3(0,2.25,-.88),Vector3(3.3,.74,.045),"8f9580")
+	block(shelter,Vector3(0,2.25,-.85),Vector3(3.22,.66,.025),"23362f")
+	block(shelter,Vector3(-1.25,2.25,-.83),Vector3(.55,.51,.025),"c2bea0")
+	var route_badge := text3(shelter,"47C",Vector3(-1.25,2.25,-.81),32,Color("23362f"))
+	route_badge.pixel_size=.005
+	route_badge.font=MENU_FONT
+	var stop_title := text3(shelter,"LOOMESVILLE FOREST",Vector3(.32,2.37,-.81),26)
+	stop_title.pixel_size=.0045
+	var service := text3(shelter,"LAST SERVICE",Vector3(.32,2.11,-.81),22,Color("a6ad98"))
+	service.pixel_size=.004
 	light(shelter,Vector3(0,2.5,0),Color("e6c289"),1.6,6)
 	block(shelter,Vector3(0,2.65,0),Vector3(1.3,.035,.12),"e3ce9b",false,true)
 	targets["note"] = [shelter, Vector3(.35,.95,-.45)]
@@ -305,9 +315,9 @@ func _build_bus() -> void:
 	var clock := text3(bus,"02:36",Vector3(.48,1.65,-3.9),30,Color("d6b67b"))
 	clock.pixel_size=.002
 	clock.outline_size=0
-	next_stop_label=text3(bus,"NEXT  /  MILL ROAD",Vector3(0,2.9,-4.38),24)
+	next_stop_label=text3(bus,"NEXT STOP: MILL ROAD",Vector3(0,2.9,-4.38),24)
 	next_stop_label.pixel_size=.0025
-	text3(bus,"47C  /  NIGHT SERVICE",Vector3(0,2.72,4.42),20).rotation.y=PI
+	text3(bus,"47C NIGHT SERVICE",Vector3(0,2.72,4.42),20).rotation.y=PI
 	for z in [-2,1,3.5]:
 		block(bus,Vector3(0,2.92,z),Vector3(.65,.035,.13),"e2cca2",false,true)
 		light(bus,Vector3(0,2.7,z),Color("ddc69a"),.36,3.5)
@@ -474,7 +484,7 @@ func _build_ui() -> void:
 	root.add_child(hud)
 	objective_panel = PanelContainer.new()
 	hud.add_child(objective_panel)
-	objective_panel.position = Vector2(32,586)
+	objective_panel.position = Vector2(32,32)
 	objective_panel.custom_minimum_size = Vector2(360,50)
 	var thought_style := StyleBoxFlat.new()
 	thought_style.bg_color = Color(.025,.035,.03,.72)
@@ -528,7 +538,7 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   /   v0.6.1", 16, Color("9d9f94"))
+	var version := label("BUS 47C   v0.6.2", 16, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(1070, 666)
@@ -574,6 +584,7 @@ func _build_ui() -> void:
 	hunger_fill.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	transition_shade=ColorRect.new()
 	root.add_child(transition_shade)
+	root.move_child(transition_shade,menu.get_index())
 	transition_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	transition_shade.color=Color.BLACK
 	transition_shade.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -585,10 +596,13 @@ func clear_box(box_ui: VBoxContainer) -> void:
 		child.queue_free()
 
 func show_menu(is_pause: bool) -> void:
+	transition_shade.hide()
 	paused = true
 	menu_is_pause = is_pause
 	menu_page = "title"
 	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = true
+	for sound in [aftermath.trail_audio,watcher_director.departure.sound]:
+		if is_instance_valid(sound):sound.stream_paused=true
 	player.enabled = false
 	player.reset_zoom()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -624,9 +638,9 @@ func show_information(page: String, is_pause: bool) -> void:
 	clear_box(menu_box)
 	menu_heading("HOW TO PLAY" if page == "controls" else "CREDITS")
 	menu_spacer(12)
-	var copy := "WASD   Move\nMOUSE   Look\nRIGHT MOUSE   Hold to zoom\nE   Interact / sit\nLEFT MOUSE   Defend with knife\nSPACE   Stand up\nTAB   Shift notes\nSHIFT   Walk faster\nESC   Pause / back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
+	var copy := "WASD   Move\nMOUSE   Look\nRIGHT MOUSE   Hold to zoom\nE   Interact and sit\nLEFT MOUSE   Defend with knife\nSPACE   Stand up\nTAB   Shift notes\nSHIFT   Walk faster\nESC   Pause or back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
 	if page == "credits":
-		copy = "BUS 47C\nStory & direction — Ashmit Avash\n\nA game built in Godot\nMenu design — Canva + original vectors\nFont — Bebas Neue / SIL OFL\n\nFootstep references\nEffecism / Kerma T.C.\nEdited for this private prototype.\n\nPlayable story prototype."
+		copy = "BUS 47C\nStory and direction: Ashmit Avash\n\nA game built in Godot\nMenu design: Canva and original vectors\nFont: Bebas Neue, SIL OFL\n\nFootstep references\nEffecism and Kerma T.C.\nEdited for this private prototype.\n\nPlayable story prototype."
 	var body := label(copy, 18, Color("bebfb5"))
 	menu_box.add_child(body)
 	menu_spacer(18)
@@ -639,6 +653,8 @@ func resume_game() -> void:
 	paused = false
 	menu_ambience.stop()
 	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = false
+	for sound in [aftermath.trail_audio,watcher_director.departure.sound]:
+		if is_instance_valid(sound):sound.stream_paused=false
 	menu.hide()
 	menu_chrome.hide()
 	menu_shade.hide()
@@ -721,7 +737,8 @@ func say(value: String, duration: float = 4.0, essential: bool = false) -> void:
 func describe_sound(value: String) -> void:
 	if sound_captions: say("[" + value + "]",3,true)
 
-func set_objective(value: String) -> void:
+func set_objective(value: String, persistent: bool=false) -> void:
+	objective_persistent=persistent and not value.is_empty()
 	objective.text = value
 	objective_time = 0.0 if value.is_empty() else 4.5
 	if value.is_empty():objective_panel.hide()
@@ -745,13 +762,13 @@ func show_document(kind: String) -> void:
 	modal_panel.show()
 	paper_surface.show()
 	clear_box(modal_box)
-	var title := paper_label({"note":"47C  /  RELIEF SERVICE","journal":"SHIFT NOTES","ticket":"47C  /  ONE WAY","newspaper":"THE LOOMESVILLE GAZETTE"}.get(kind,"SHIFT NOTES"),30)
+	var title := paper_label({"note":"47C RELIEF SERVICE","journal":"SHIFT NOTES","ticket":"47C ONE WAY","newspaper":"THE LOOMESVILLE GAZETTE"}.get(kind,"SHIFT NOTES"),30)
 	title.add_theme_font_override("font",MENU_FONT)
 	modal_box.add_child(title)
 	modal_box.add_child(paper_label("MORNING EDITION" if kind=="newspaper" else "LOOMESVILLE FORESTRY DIVISION",12))
 	modal_box.add_child(HSeparator.new())
 	var copy := "47C is the last bus to Loomesville.\n\nThe driver will not answer you.\nBoard anyway.\n\nIf you hear someone behind you in the forest, keep walking.\n\nDo not look back."
-	if kind=="journal": copy = "End of shift. Get home.\n\n" + objective.text + "\n\nRoute\nFirewatch — Mill Road — Old Quarry\nPine Crossing — St Bride's — Loomesville\n\nEmpty seats are available.\nE to sit. Space to stand."
+	if kind=="journal": copy = "End of shift. Get home.\n\n" + objective.text + "\n\nRoute\nFirewatch, Mill Road, Old Quarry\nPine Crossing, St Bride's, Loomesville\n\nEmpty seats are available.\nE to sit. Space to stand."
 	if kind=="ticket":copy="SINGLE FARE\n\nFROM: FIREWATCH SHELTER\nTO:   LOOMESVILLE\n\nSERVICE: 47C\nTIME:    02:36\n\nOne passenger.\n\nThe paper smells of smoke."
 	if kind=="newspaper":copy="NIGHT BUS DESTROYED BY FIRE\n\nNo survivors were recovered from service 47C. Investigators suspect arson.\n\nPolice seek the state firewatcher assigned to Loomesville Forest.\n\nBelow the headline is your photograph.\n\nThe clock above the counter reads 02:36."
 	modal_box.add_child(paper_label(copy,21))
@@ -804,7 +821,7 @@ func apply_stage(save: bool = true) -> void:
 			say("No driver.",3)
 		Story.Stage.RIDING:
 			set_objective("Find a seat. Mill Road is next.")
-			next_stop_label.text="NEXT  /  MILL ROAD"
+			next_stop_label.text="NEXT STOP: MILL ROAD"
 			set_door(false)
 			say("Still 02:36.",3)
 			drone.play()
@@ -820,7 +837,7 @@ func apply_stage(save: bool = true) -> void:
 			drone.play()
 		Story.Stage.NEXT_RIDE:
 			set_objective("Old Quarry is next.")
-			next_stop_label.text="NEXT  /  OLD QUARRY"
+			next_stop_label.text="NEXT STOP: OLD QUARRY"
 		Story.Stage.SECOND_STOP:
 			bus.position.z=-270
 			passengers.request_count(3)
@@ -831,7 +848,7 @@ func apply_stage(save: bool = true) -> void:
 			set_door(true)
 		Story.Stage.THIRD_RIDE, Story.Stage.FOURTH_RIDE:
 			var next: String=Story.STOP_NAMES[story.leg_index()+1]
-			next_stop_label.text="NEXT  /  "+next
+			next_stop_label.text="NEXT STOP: "+next
 			set_objective(next.capitalize()+" is next.")
 		Story.Stage.THIRD_STOP, Story.Stage.FOURTH_STOP:
 			var index: int=story.stop_index()
@@ -843,22 +860,19 @@ func apply_stage(save: bool = true) -> void:
 			play_sound("chime")
 			set_door(true)
 		Story.Stage.FINAL_RIDE:
-			next_stop_label.text="NEXT  /  LOOMESVILLE"
+			next_stop_label.text="NEXT STOP: LOOMESVILLE"
 			set_objective("Loomesville should be next.")
 		Story.Stage.DEER:
 			bus.position.z=-680
 			deer.visible=true
 			deer.position=Route.point(.3,.33,-685)
 			deer.rotation.z=PI/2
-			aftermath.hunger=minf(aftermath.hunger,35)
 			engine.stop()
 			play_sound("impact")
 			next_stop_label.text="SERVICE INTERRUPTED"
 			set_objective("Look through the windshield.")
 			describe_sound("Impact. Brakes hiss")
 		Story.Stage.FINISHED:
-			set_objective("Something is in the trees.")
-			say("I need to get off this bus.",4)
 			aftermath.begin_forest()
 	align_bus()
 	if save:save_checkpoint()
@@ -904,11 +918,10 @@ func _process(delta: float) -> void:
 		if story.tick(delta):apply_stage()
 	if not aftermath.active and story.stage==Story.Stage.DEER and story.elapsed>4:
 		if story.interact("deer"):apply_stage()
-	if not aftermath.active and (moving_stage or story.stage in [6,8,13,15]):aftermath.hunger=maxf(35,aftermath.hunger-delta*.12)
-	hunger_bar.visible=running and (moving_stage or aftermath.active or story.stage in [6,8,10,13,15]) and aftermath.hunger<99
+	hunger_bar.visible=running and aftermath.active and aftermath.phase not in ["disembark","hunger_cue"] and aftermath.hunger<99
 	hunger_text.visible=hunger_bar.visible
 	hunger_fill.size.x=135*aftermath.hunger/100
-	objective_time=maxf(0,objective_time-delta)
+	if not objective_persistent:objective_time=maxf(0,objective_time-delta)
 	objective_panel.visible=objective_time>0 and caption_time<=0
 	objective_panel.modulate.a=minf(1,objective_time)
 	if caption_time>0:
@@ -943,7 +956,7 @@ func update_target() -> void:
 				current_target="seat:"+str(i)
 	var names := {"note":"Read note","door":"Board the bus","driver":"Check driver's seat","clock":"Read clock","passenger":"Look at passenger","route":"Read route sign","deer":"Look outside"}
 	if current_target.begins_with("seat:"):prompt.text="E   Sit down"
-	elif not current_target.is_empty():prompt.text=("WALK  /  " if current_target=="door" else "E   ")+names[current_target]
+	elif not current_target.is_empty():prompt.text=("WALK   " if current_target=="door" else "E   ")+names[current_target]
 	else:prompt.text=""
 
 
@@ -1179,7 +1192,7 @@ func smoke_test() -> void:
 	assert(deer.visible)
 	assert(story.interact("deer"))
 	apply_stage(false)
-	assert(aftermath.active and aftermath.phase=="forage")
+	assert(aftermath.active and aftermath.phase=="disembark")
 	await test_ride_features()
 	assert(await preload("res://tests/scenario_checks.gd").run(self))
 	print("PASS: six stops, moving deer, slow zoom-only watcher, seats, doors, forest failures/recovery, both routes and both endings")
@@ -1195,45 +1208,77 @@ func capture_frame(name_text: String) -> void:
 		paused=was_paused
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.6.1-"+name_text+".png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.6.2-"+name_text+".png")
 
 func capture_preview() -> void:
 	get_tree().create_timer(60).timeout.connect(func():get_tree().quit(2))
 	await get_tree().create_timer(.6).timeout
+	start_game(Story.Stage.STOP)
+	player.position=Vector3(5,.15,2.5)
+	player.camera.look_at(Vector3(5,2.25,-.82))
+	paused=true
+	await capture_frame("shelter-sign")
+	start_game(Story.Stage.PASSENGER)
+	story.stage=Story.Stage.NEXT_RIDE
+	story.elapsed=12
+	apply_stage(false)
+	set_door(false,true)
+	_physics_process(.016)
+	player.camera.look_at(bus.to_global(Vector3(22,1.7,-15)))
+	watcher_director.reset(watcher)
+	update_watcher(2)
+	assert(watcher.visible)
+	player.camera.look_at(watcher.global_position+Vector3(0,1.4,0))
+	player.camera.fov=43
+	Input.action_press("zoom")
+	update_watcher(.56)
+	update_watcher(3.1)
+	update_watcher(.35)
+	paused=true
+	await capture_frame("watcher-dissolve")
+	update_watcher(.6)
+	assert(not watcher.visible and watcher_director.departure.root.visible)
+	await capture_frame("watcher-remnant")
 	start_game(Story.Stage.DEER)
 	request_interaction("deer")
 	set_door(true,true)
-	aftermath.place_player(Route.point(5,.15,-684),Vector3(28,1,-688))
 	paused=true
-	await capture_frame("forage")
-	aftermath.place_player(Vector3(20,.15,-671.5),Vector3(20,.9,-674))
-	await capture_frame("fruit")
-	aftermath.restore({"phase":"fork","branch":"walk"})
-	aftermath.place_player(Route.FOREST_FORK+Vector3(-4,.15,4),Route.FOREST_FORK+Vector3(2.6,1.5,2.6))
-	await capture_frame("sign")
-	aftermath.start_walking()
-	aftermath.place_player(Vector3(103,.15,-723),Vector3(120,1,-736))
-	await capture_frame("path-town")
-	aftermath.restore({"phase":"town","branch":"walk"})
-	aftermath.place_player(Aftermath.HOUSE+Vector3(0,.15,5.5),Aftermath.HOUSE+Vector3(-1.6,.98,3.9))
+	await capture_frame("before-exit")
+	aftermath.place_player(Route.point(4,.15,-683),Vector3(28,1,-688))
 	aftermath.update(.01)
-	await capture_frame("knife")
-	request_interaction("knife")
-	aftermath.place_player(Aftermath.HOUSE+Vector3(0,.15,3.5),aftermath.opponent.global_position+Vector3(0,1.5,0))
-	await capture_frame("armed")
-	aftermath.restore({"phase":"forest","branch":""})
+	assert(aftermath.phase=="hunger_cue" and aftermath.hunger_cues_played==1)
+	await capture_frame("stomach-cue")
+	aftermath.update(1.9)
+	await capture_frame("food-objective")
 	aftermath.place_player(Vector3(22,.15,-700),Vector3(16,1.7,-706))
 	aftermath.set_phase("return","")
 	aftermath.pursuit_grace=0
 	aftermath.update(.4)
-	assert(aftermath.look_back_armed and not aftermath.pursuer.visible)
-	await capture_frame("empty-behind")
 	player.global_position.x+=.3
 	aftermath.update(.01)
-	aftermath.update(.24)
-	assert(aftermath.phase=="jumpscare")
-	await capture_frame("ambush")
-	print("Rendered v0.6.1 corrections; forest trees: ",forest.tree_count,"; batches: ",forest.batches)
+	aftermath.update(.72)
+	show_menu(true)
+	await capture_frame("capture-paused")
+	resume_game()
+	aftermath.update(.3)
+	assert(aftermath.phase=="dead" and not transition_shade.visible)
+	await capture_frame("caught-menu")
+	var shot := get_viewport().get_texture().get_image()
+	var lit := 0
+	for y in range(55,350,4):
+		for x in range(60,550,4):
+			var pixel := shot.get_pixel(x,y)
+			if pixel.r+pixel.g+pixel.b>1.2:lit+=1
+	assert(lit>100,"Rendered retry menu must be visible, not covered by a black fade")
+	var retry: Button=get_viewport().gui_get_focus_owner()
+	assert(retry.text=="RETRY CHECKPOINT")
+	retry.pressed.emit()
+	assert(not menu.visible and not transition_shade.visible)
+	aftermath.update(.01)
+	aftermath.update(1.9)
+	paused=true
+	await capture_frame("retry")
+	print("Rendered v0.6.2 signage, dissolve, hunger timing and visible capture menu; retry button works")
 	quit_cleanly()
 
 func glass(parent: Node3D, pos: Vector3, size: Vector3) -> MeshInstance3D:
@@ -1591,7 +1636,19 @@ func test_ride_features() -> void:
 	update_watcher(1.4)
 	assert(watcher.visible,"The slow turn and stare must remain visible")
 	update_watcher(1.5)
-	assert(not watcher.visible)
+	assert(watcher.visible and watcher_director.departure.active,"The figure dissolves rather than popping out")
+	update_watcher(.4)
+	assert(watcher.visible and watcher_director.departure.root.visible)
+	update_watcher(.4)
+	assert(not watcher.visible and watcher_director.departure.root.visible,"Smoke lingers after the body vanishes")
+	var effect_time: float=watcher_director.departure.elapsed
+	show_menu(true)
+	_physics_process(5)
+	assert(watcher_director.departure.elapsed==effect_time)
+	resume_game()
+	update_watcher(2)
+	assert(not watcher_director.departure.active and not watcher_director.departure.root.visible)
+	Input.action_press("zoom")
 	await get_tree().create_timer(.2).timeout
 	assert(player.camera.fov<player.normal_fov-10)
 	show_menu(true)

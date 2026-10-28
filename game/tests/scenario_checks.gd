@@ -29,25 +29,39 @@ static func run(g) -> bool:
 	g.start_game(Story.Stage.DEER)
 	g.request_interaction("deer")
 	var a=g.aftermath
-	assert(a.phase=="forage" and g.door_goal==1)
+	assert(a.phase=="disembark" and g.door_goal==1)
+	a.update(12)
+	assert(a.phase=="disembark" and a.hunger_cues_played==0 and a.hunger==100)
+	assert(g.objective.text=="Step off the bus." and not g.subtitle_frame.visible)
 	g.set_door(true,true)
 	# Physically leave the stopped bus through its open doorway.
 	g.player.position=Vector3(.3,.8,-3)
 	g.player.rotation=Vector3.ZERO
 	g.player.camera.rotation=Vector3.ZERO
 	Input.action_press("right")
-	for i in range(150):
+	for i in range(240):
 		await g.get_tree().physics_frame
-		if g.player.get_parent()==g:break
+		if a.phase=="hunger_cue":break
 	Input.action_release("right")
 	assert(g.player.get_parent()==g,"Breakdown exit: pos=%s enabled=%s paused=%s seated=%s door=%s stage=%s" % [g.player.position,g.player.enabled,g.paused,g.player.seated,g.door_amount,g.story.stage])
+	assert(a.phase=="hunger_cue" and a.hunger_cues_played==1 and g.objective.text.is_empty())
+	assert(g.sfx.stream.resource_path.ends_with("stomach.wav"),"Stomach rumble starts after disembarking")
+	g.show_menu(true)
+	g._process(10)
+	assert(a.phase=="hunger_cue")
+	g.resume_game()
+	a.update(1.9)
+	g._process(10)
+	assert(a.phase=="forage" and a.hunger_cues_played==1)
+	assert(g.objective_panel.visible and g.objective_panel.position.y<100 and g.objective_persistent)
+	assert(g.objective.text=="Find something to eat." and not g.subtitle_frame.visible)
 	for i in range(3):
 		var id := "fruit"+str(i)
 		var spot: Dictionary=a.spots[id]
 		var target: Vector3=spot.parent.to_global(spot.local)
 		aim(g,id,Vector3(target.x,.15,target.z+1.7))
 		g.request_interaction(id)
-	assert(a.phase=="return" and a.hunger==100)
+	assert(a.phase=="return" and a.hunger==100 and not g.subtitle_frame.visible)
 	var goal: Vector3=Route.FOREST_FORK
 	a.place_player(a.point(30,-700)+Vector3(0,.15,0),goal+Vector3.UP)
 	a.pursuit_grace=0
@@ -85,7 +99,14 @@ static func run(g) -> bool:
 	assert(a.phase=="jumpscare" and a.pursuer.visible)
 	a.update(.7)
 	assert(a.phase=="dead" and g.paused)
-	g.continue_game()
+	assert(not g.transition_shade.visible and g.menu.visible,"Capture fade must never cover the result menu")
+	assert(g.transition_shade.get_index()<g.menu.get_index(),"Menus render above scene fades")
+	var retry_button: Button=g.get_viewport().gui_get_focus_owner()
+	assert(retry_button.text=="RETRY CHECKPOINT" and retry_button.is_visible_in_tree())
+	retry_button.pressed.emit()
+	assert(not g.paused and not g.menu.visible and not g.transition_shade.visible)
+	a.update(.01)
+	a.update(1.9)
 	assert(a.phase=="forage" and a.fruit_taken.is_empty(),"Forest failure restores a safe checkpoint")
 	# Walk the entire continuous trail; no sign interaction or endpoint teleport.
 	a.restore({"phase":"fork","branch":"walk"})

@@ -10,6 +10,7 @@ var phase := ""
 var branch := ""
 var checkpoint := "forest"
 var hunger := 100.0
+var hunger_cues_played := 0
 var state_time := 0.0
 var look_back_time := 0.0
 var pursuit_grace := 0.0
@@ -149,7 +150,7 @@ func build_forest() -> void:
 			berries.add_child(fruit)
 			fruit.position=Vector3((j%2)*.5-.25,.8+(j/2)*.2,.55)
 		fruit_nodes.append(berries)
-		hotspot("fruit"+str(i),root,Vector3(0,1,.4),"Gather fruit",2.6)
+		hotspot("fruit"+str(i),root,Vector3(0,1,.4),"Eat fruit",2.6)
 	var ticket: MeshInstance3D=game.block(props,Vector3(5.35,.77,-.45),Vector3(.3,.018,.18),"d7bf7c")
 	hotspot("ticket",ticket,Vector3(0,.1,0),"Read the ticket")
 
@@ -300,6 +301,7 @@ func reset() -> void:
 	branch=""
 	checkpoint="forest"
 	hunger=100
+	hunger_cues_played=0
 	state_time=0
 	fruit_taken.clear()
 	knife=false
@@ -352,7 +354,7 @@ func restore(data: Dictionary) -> void:
 	game.bus.position.z=-680
 	game.align_bus()
 	game.set_door(true,true)
-	game.watcher.hide()
+	game.watcher_director.reset(game.watcher)
 	if saved=="forest":
 		begin_forest()
 		place_player(point(4,-683)+Vector3(0,.15,0),point(20,-694)+Vector3.UP)
@@ -410,11 +412,10 @@ func set_phase(value: String, objective: String) -> void:
 func begin_forest() -> void:
 	active=true
 	props.show()
-	game.watcher.hide()
+	game.watcher_director.reset(game.watcher)
 	game.set_door(true)
-	hunger=minf(hunger,35)
-	set_phase("forage","The bus has stalled. Search the nearby undergrowth for something to eat.")
-	game.say("I haven't eaten since my shift began.",4)
+	hunger=100
+	set_phase("disembark","Step off the bus.")
 	game.play_sound("stall")
 	save_at("forest")
 
@@ -441,7 +442,7 @@ func update_target() -> void:
 	game.prompt.text=""
 	if phase=="closet":
 		game.current_target="leave_closet"
-		game.prompt.text="E   Leave the closet   /   Stay hidden until daylight"
+		game.prompt.text="E   Leave the closet. Stay hidden until daylight."
 		return
 	var best := .65
 	for id in allowed():
@@ -452,7 +453,7 @@ func update_target() -> void:
 		if diff.length()<spot.radius and aim>best:
 			best=aim
 			game.current_target=id
-			game.prompt.text=("LMB / E   " if id=="defend" else "E   ")+spot.title
+			game.prompt.text=("LMB or E   " if id=="defend" else "E   ")+spot.title
 	if game.current_target.is_empty() and game.seated_index<0 and game.player.get_parent()==game.bus:
 		for i in range(game.seats.size()):
 			if not game.passengers.can_sit(i):continue
@@ -469,13 +470,13 @@ func interact(id: String) -> void:
 	if id.begins_with("fruit"):
 		var index := int(id.trim_prefix("fruit"))
 		fruit_taken.append(index)
+		hunger=minf(100,hunger+22)
 		fruit_nodes[index].hide()
 		game.play_sound("rustle")
 		if fruit_taken.size()==3:
 			hunger=100
 			pursuit_grace=5
-			set_phase("return","Return to the path. Something is moving in the trees.")
-			game.say("Footsteps in the undergrowth.",5,true)
+			set_phase("return","Return to the path.")
 	elif id=="shortcut":start_walking()
 	elif id=="take_bus":
 		if not game.player_aboard():
@@ -484,7 +485,7 @@ func interact(id: String) -> void:
 		branch="bus"
 		game.set_door(false)
 		game.engine.play()
-		game.next_stop_label.text="NEXT  /  LOOMESVILLE"
+		game.next_stop_label.text="NEXT STOP: LOOMESVILLE"
 		set_phase("bus_depart","Loomesville is the final stop.")
 	elif id=="knife":
 		knife=true
@@ -512,7 +513,7 @@ func interact(id: String) -> void:
 		elif mirror_count==2:
 			for part in mouth_parts:part.hide()
 		else:nose.hide()
-		if mirror_count<3:game.set_objective("Something is missing. Look again.  "+str(mirror_count)+" / 3")
+		if mirror_count<3:game.set_objective("Something is missing. Look again.  "+str(mirror_count)+" of 3")
 		else:set_phase("escape","There is no face left. Leave the house and follow Forestry Way.")
 	elif id=="escape":transition("loop")
 	elif id=="shovel":
@@ -547,9 +548,20 @@ func update(delta: float) -> void:
 	state_time+=delta
 	mirror_wait=maxf(0,mirror_wait-delta)
 	status.text=""
-	if phase=="forage":
+	if phase=="disembark":
+		var local: Vector3=game.bus.to_local(game.player.global_position)
+		if game.player.get_parent()!=game.bus and local.x>3.3 and game.player.global_position.y<.4:
+			set_phase("hunger_cue","")
+			hunger=35
+			hunger_cues_played+=1
+			game.play_sound("stomach")
+	elif phase=="hunger_cue":
+		if state_time>=1.8:
+			set_phase("forage","")
+			game.set_objective("Find something to eat.",true)
+	elif phase=="forage":
 		hunger=maxf(0,hunger-delta*.12)
-		status.text="FRUIT   "+str(fruit_taken.size())+" / 3"
+		status.text="FRUIT   "+str(fruit_taken.size())+" of 3"
 		if hunger<=0:fail("You waited too long. The hunger took you.")
 	elif phase in ["return","walk"]:
 		var goal: Vector3=Route.FOREST_FORK if phase=="return" else walking_goal()
@@ -579,7 +591,7 @@ func update(delta: float) -> void:
 		if state_time>=Route.FINAL_RIDE_SECONDS:
 			game.engine.volume_db=-22
 			game.set_door(true)
-			game.next_stop_label.text="LOOMESVILLE  /  TERMINUS"
+			game.next_stop_label.text="LOOMESVILLE TERMINUS"
 			game.play_sound("chime")
 			set_phase("arrival","Loomesville. Step off the bus to go home.")
 	elif phase=="arrival":
@@ -601,7 +613,7 @@ func update(delta: float) -> void:
 		target.y=.12
 		# Let the player find and equip the weapon before the rush begins.
 		if knife:attack_ready_time+=delta
-		status.text="LMB / E   DEFEND" if knife else ""
+		status.text="LMB or E   DEFEND" if knife else ""
 		if knife and attack_ready_time>2.5:
 			opponent.position=opponent.position.move_toward(target,delta*.65)
 			var face := target-opponent.position
@@ -776,6 +788,8 @@ func document_closed(kind: String) -> void:
 	elif kind=="newspaper" and phase=="dawn":complete("THE MORNING EDITION","The newspaper names you as the suspect.\nYou remember the ride.\nYou cannot remember lighting the match.")
 
 func fail(reason: String) -> void:
+	game.transition_shade.hide()
+	game.transition_shade.color=Color(0,0,0,0)
 	trail_audio.stop()
 	set_phase("dead",reason)
 	game.player.movement_scale=1

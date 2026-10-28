@@ -7,8 +7,10 @@ var cooldown := 2.0
 var appearances := 0
 var zoom_dwell := 0.0
 var starting_yaw := 0.0
+var departure = preload("res://scripts/watcher_departure.gd").new()
 
 func reset(figure: Node3D) -> void:
+	departure.clear()
 	state="hidden"
 	age=0
 	cooldown=2
@@ -26,13 +28,17 @@ func appear(figure: Node3D, at: Vector3, yaw: float) -> void:
 	appearances+=1
 
 func vanish(figure: Node3D) -> void:
-	figure.hide()
-	state="hidden"
-	cooldown=7.0
+	departure.begin(figure)
+	state="dissolving"
 	age=0
 	zoom_dwell=0
 
 func update(delta: float, figure: Node3D, camera: Camera3D, bus: Node3D, stage: int, zoom: bool) -> void:
+	if state=="dissolving":
+		if departure.update(delta,figure,camera):
+			state="hidden"
+			cooldown=7.0
+		return
 	if stage not in [Story.Stage.PASSENGER,Story.Stage.NEXT_RIDE,Story.Stage.SECOND_STOP,Story.Stage.THIRD_RIDE,Story.Stage.THIRD_STOP,Story.Stage.FOURTH_RIDE,Story.Stage.FOURTH_STOP,Story.Stage.FINAL_RIDE,Story.Stage.DEER]:return
 	if state=="hidden":
 		cooldown-=delta

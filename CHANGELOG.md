@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2
+- Rebuilt the shelter sign as a physical transit plaque with a separate 47C badge. Removed slash and em-dash separators from game signs, notes, menus, credits and prompts.
+- Watcher disappearance now dissolves the model over 0.75 seconds, with drifting smoke, a fading red remnant and a positional sound. The remnant persists after the body vanishes and clears before another appearance.
+- Hunger starts only after physically leaving the broken bus. An original stomach rumble precedes a persistent top-left food objective. No hunger narration or undergrowth-footstep subtitle; fruit interactions consume food.
+- Fixed capture black screen: scene fades now render below menus and are explicitly cleared on failure and menu opening. Verified the rendered retry screen and activated its retry button.
+- Added regressions for staying aboard, rumble timing, persistent objectives, dissolved-body remnants, pause behavior and visible capture recovery. Both story endings remain covered.
+
 ## 0.6.1
 - First passenger boards without a look-back prompt or required passenger interaction; departure follows the normal boarding and door checks.
 - Smaller, correctly oriented footpath sign moved off the walking line. Fruit bushes scattered around the breakdown clearing with no direct lantern trail.

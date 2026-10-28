@@ -33,7 +33,7 @@ for _ in range(200):
     w, h = rng.uniform(.5, 5.5), rng.uniform(.4, 2.2)
     scratches.append(f'<path d="M{x:.2f} {y:.2f}l{w:.2f} -1 .8 {h:.2f} -{w:.2f} 1Z" fill="black"/>')
 logo = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="192" viewBox="0 0 {width} 192">
-<title>Bus 47C — distressed night service wordmark</title>
+<title>Bus 47C distressed night service wordmark</title>
 <defs><mask id="weathering"><rect width="{width}" height="192" fill="white"/>{''.join(scratches)}</mask></defs>
 <g id="editable-letter-outlines" fill="#e3decd" mask="url(#weathering)"><path d="{pen.getCommands()}"/></g>
 <g id="haunted-bus-emblem" transform="translate({width-109},118)" stroke="#e3decd" stroke-width="2" fill="#121917">
