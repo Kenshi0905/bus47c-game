@@ -275,6 +275,9 @@ func label(value: String, size: int, color: Color = Color("ded8c7")) -> Label:
 	l.text = value
 	l.add_theme_font_size_override("font_size",size)
 	l.add_theme_color_override("font_color",color)
+	l.add_theme_color_override("font_shadow_color",Color(0,0,0,.8))
+	l.add_theme_constant_override("shadow_offset_x",1)
+	l.add_theme_constant_override("shadow_offset_y",2)
 	return l
 
 func button(value: String, callback: Callable) -> Button:
@@ -337,7 +340,7 @@ func _build_ui() -> void:
 	help.position = Vector2(32,679)
 	menu = PanelContainer.new()
 	root.add_child(menu)
-	menu.position = Vector2(70,110)
+	menu.position = Vector2(70,50)
 	menu.custom_minimum_size = Vector2(460,500)
 	menu.add_theme_stylebox_override("panel",panel_style())
 	menu_box = VBoxContainer.new()
@@ -389,7 +392,7 @@ func show_menu(is_pause: bool) -> void:
 	sensitivity.value = player.sensitivity
 	sensitivity.value_changed.connect(func(v: float): player.sensitivity = v)
 	menu_box.add_child(sensitivity)
-	menu_box.add_child(button("Quit",func(): get_tree().quit()))
+	menu_box.add_child(button("Quit",quit_cleanly))
 
 func resume_game() -> void:
 	paused = false
@@ -493,7 +496,7 @@ func apply_stage(save: bool = true) -> void:
 			say("[The door closes behind you]")
 		Story.Stage.CLOCK:
 			objective.text = "Check the clock above the dashboard."
-			say("No driver. No footsteps. But the steering wheel is moving.")
+			say("No driver. No footsteps. But we're moving.")
 		Story.Stage.RIDING:
 			objective.text = "Stay aboard. Watch the road."
 			say("02:36. The clock hasn't changed since I got on.")
@@ -569,7 +572,15 @@ func finish_slice() -> void:
 	menu_box.add_child(summary)
 	menu_box.add_child(button("Replay from the bus",func(): start_game(Story.Stage.CAB)))
 	menu_box.add_child(button("Start again",func(): start_game(0)))
-	menu_box.add_child(button("Quit",func(): get_tree().quit()))
+	menu_box.add_child(button("Quit",quit_cleanly))
+
+func quit_cleanly() -> void:
+	for sound in [ambience, engine, drone, sfx, footsteps]:
+		sound.stream_paused = false
+		sound.stop()
+		sound.stream = null
+	await get_tree().create_timer(0.2).timeout
+	get_tree().quit()
 
 func smoke_test() -> void:
 	start_game(0)
@@ -615,7 +626,7 @@ func smoke_test() -> void:
 	print("PASS: complete scene flow, asset loading, boarding, passenger reveal and end menu")
 	await get_tree().process_frame
 	await get_tree().process_frame
-	get_tree().quit()
+	quit_cleanly()
 
 func capture_preview() -> void:
 	start_game(Story.Stage.PASSENGER)
@@ -625,4 +636,4 @@ func capture_preview() -> void:
 	await get_tree().create_timer(1.0).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("res://../docs/prototype-preview.png")
-	get_tree().quit()
+	quit_cleanly()
