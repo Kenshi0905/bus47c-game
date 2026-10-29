@@ -63,6 +63,10 @@ void fragment() {
 		float phase=world.y*42.0+sin(horizontal*3.0);
 		color*=.94+.045*sin(phase)*(1.0-smoothstep(.8,2.5,fwidth(phase)));
 	}
+	if(kind==11) {
+		float seam=smoothstep(.015,.04,abs(fract(horizontal*2.5)-.5));
+		color*=.8+.2*seam;
+	}
 	ALBEDO=color;
-	ROUGHNESS=0.91;
+	ROUGHNESS=kind==11?.44:(kind==3?.62:.91);
 }

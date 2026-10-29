@@ -288,17 +288,44 @@ func pizza_room(root: Node3D) -> void:
 	lettering(root,"HOT PIZZA     LATE COLLECTION\nMARGHERITA    PEPPERONI    HOUSE SPECIAL",Vector3(1.6,2.3,-5.33),.0035)
 
 func diner_room(root: Node3D) -> void:
-	for z in [.4,3.2]:
-		for x in [-3.7,3.7]:table(root,Vector3(x,0,z),true)
-	for x in [-2.5,0,2.5]:
-		cylinder(root,Vector3(x,.35,-1.7),.1,.7,"7c8170")
-		cylinder(root,Vector3(x,.76,-1.7),.3,.14,"763c32")
+	# Red vinyl booths along the windows, a lunch counter opposite, clear centre aisle.
+	for z in [.1,3.15]:
+		for side in [-1,1]:
+			box(root,Vector3(4.1,.48,z+side*.95),Vector3(2.8,.25,.65),"853c2e",true,11)
+			box(root,Vector3(4.1,.96,z+side*1.22),Vector3(2.8,1.15,.17),"793629",true,11)
+			box(root,Vector3(4.1,1.12,z+side*1.105),Vector3(.8,.66,.025),"b09a6c",false,11)
+			for x in [2.75,5.45]:box(root,Vector3(x,.9,z+side*1.1),Vector3(.025,1.0,.09),"9c9b85")
+		box(root,Vector3(4.1,.85,z),Vector3(2.6,.11,1.12),"bcb18a",true)
+		box(root,Vector3(4.1,.79,z),Vector3(2.66,.035,1.17),"919a8e")
+		cylinder(root,Vector3(4.1,.4,z),.09,.8,"737f76")
+		box(root,Vector3(5,.98,z),Vector3(.21,.23,.18),"958b73")
+		for x in [3.4,4.6]:cylinder(root,Vector3(x,.99,z),.09,.16,"ccc2a3")
+	box(root,Vector3(-4.6,.55,1.3),Vector3(2.5,1.1,6.4),"493a2d",true,2)
+	box(root,Vector3(-4.6,1.12,1.3),Vector3(2.6,.13,6.5),"b4a37a",true)
+	box(root,Vector3(-3.27,.98,1.3),Vector3(.04,.1,6.5),"a7ada1")
+	for z in [-.8,.65,2.1,3.55]:
+		cylinder(root,Vector3(-2.65,.4,z),.07,.8,"a0a99a")
+		cylinder(root,Vector3(-2.65,.12,z),.33,.06,"6c756c")
+		cylinder(root,Vector3(-2.65,.85,z),.31,.16,"8e4030")
+		box(root,Vector3(-2.25,1.15,z),Vector3(.12,.6,.5),"803529",true,11)
+		cylinder(root,Vector3(-4.0,1.25,z),.1,.16,"bcb49b")
+	for z in [.0,3.0]:
+		box(root,Vector3(5.87,2.1,z),Vector3(.08,1.8,2.8),"172321")
+		for row in range(14):
+			var blind := box(root,Vector3(5.80,1.32+row*.12,z),Vector3(.08,.067,2.74),"7f795b")
+			blind.rotation.z=.23
+		for dz in [-.95,.95]:box(root,Vector3(5.74,2.1,z+dz),Vector3(.015,1.7,.02),"c2b18b")
+		pendant(root,Vector3(4.0,2.85,z),"d4b273")
+	for z in [-1.4,1.4,4.1]:
+		box(root,Vector3(0,3.08,z),Vector3(.7,.10,1.65),"7f8070")
+		game.block(root,Vector3(0,3.02,z),Vector3(.56,.025,1.5),"c4bc91",false,true)
+		game.light(root,Vector3(0,2.8,z),Color("dfc38f"),1.2,5)
 	box(root,Vector3(-2,1.5,-4.7),Vector3(1.4,.9,.6),"70786a")
 	for x in [-2.4,-1.6]:cylinder(root,Vector3(x,1.95,-4.7),.18,.35,"222e2a")
 	lettering(root,"COFFEE ALL NIGHT\nTHE USUAL IS ALREADY ON",Vector3(1.7,2.3,-5.38),.005)
 	box(root,Vector3(-5.2,.8,3.8),Vector3(.7,1.6,.65),"745638",true)
 	game.block(root,Vector3(-5.2,1.2,4.15),Vector3(.5,.5,.04),"b58b52",false,true)
-	for x in [-5.88,5.88]:
+	for x in [-5.88]:
 		box(root,Vector3(x,.65,0),Vector3(.06,1.2,10.7),"6b4636",false,10)
 		box(root,Vector3(x,1.28,0),Vector3(.1,.08,10.7),"a18d64")
 		for z in [-1.5,1.0,3.2]:

@@ -5,6 +5,8 @@ var bodies: Node3D
 var coffee_blackout := false
 var coffee_lights: Array[Node3D]=[]
 var coffee_bulbs: Array[Dictionary]=[]
+var inspected: Array[String]=[]
+var resident_spots: Array[String]=[]
 const STAFF=["MARA   DINER OWNER","DEV   MART OWNER","NORA   COFFEE OWNER","ED   TAKEAWAY OWNER"]
 const COLORS=["9b7752","66866a","bb9e72","934539"]
 
@@ -47,6 +49,7 @@ func setup(g,a) -> void:
 	reset()
 
 func reset() -> void:
+	inspected.clear()
 	coffee_blackout=false
 	for lamp in coffee_lights:lamp.show()
 	for item in coffee_bulbs:item.mesh.material_override=item.material
@@ -114,9 +117,17 @@ func corpse(at: Vector3, index: int, yaw: float) -> void:
 		var key := String(part.name).to_lower()
 		if "shirt" in key or "torso" in key or "sleeve" in key:part.material_override=game.mat(COLORS[index%4])
 		part.visibility_range_end=65
-	if index<4:
-		game.block(root,Vector3(0,.2,-1.0),Vector3(.4,.025,.48),COLORS[index])
-		var badge: Label3D=game.text3(root,STAFF[index],Vector3(0,.225,-1),20,Color("d8c8a0"))
-		badge.pixel_size=.0015
-		badge.rotation.x=-PI/2
+	var id := "resident_"+str(resident_spots.size())
+	resident_spots.append(id)
+	after.hotspot(id,root,Vector3(0,.22,-1),"Inspect",2.7)
+	# Clothing and personal effects hint at their lives without naming the dead.
+	if index%4==0:game.block(root,Vector3(.32,.09,-.8),Vector3(.16,.03,.23),"b19c72")
+	elif index%4==1:game.block(root,Vector3(.32,.1,-1.1),Vector3(.08,.04,.12),"a4a298")
 	pool(bodies,Vector3(at.x,.067,at.z-1),Vector2(.8,1.3))
+
+func inspect(id: String) -> void:
+	if id not in resident_spots:return
+	var index: int=resident_spots.find(id)
+	var clues := ["Flour on the cuffs. The apron is still warm.","A ring of keys. One has a tiny green tag.","Coffee on the sleeve. I know that smell.","Grease on the collar. A receipt in the pocket."]
+	game.say(clues[index%4] if not inspected.is_empty() else "Oh God... Oh my God. This is horrible.",5,true)
+	if id not in inspected:inspected.append(id)

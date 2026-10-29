@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.0-beta.1
+- Rebuilt the Night Owl Diner interior with red vinyl booths, cream tables, counter stools, window blinds and warm ceiling fixtures. The main aisle and counter note remain accessible.
+- Adopted the approved F wordmark and Share Tech Mono typography across menus, documents and world labels. Simplified the repository README to a compact logo, download link and one game capture.
+- The hazard cross has uneven, tapered paint strokes, smears and drips. Town corpses have no identity labels; E inspection offers a shocked reaction and small personal clues.
+- The wardrobe supports bounded movement, free look and held right-click peeking, with a visible daylight countdown. Leaving early still has consequences.
+- Engine repairs, burial and coffee preparation now show actual action progress and remaining time. Pausing and reading preserve these timers and movement locks.
+- The newspaper has a masthead, columns and game-rendered photographs, including a matching physical paper on the table. Both endings continue through a paced first-person scene, audio, fade and credits before the results menu.
+- Journal strike-through is reserved for completed tasks; an abandoned bus repair is labelled separately. Audio emitters shut down cleanly when the game exits.
+- Added native and headless regression checks for inspection, timed actions, wardrobe controls, newspaper layout and endings. More lore and broader hardware testing remain in development.
+
 ## 0.9.0-beta.1
 - Passenger eyes, nose and mouth drop in staggered pieces, leaving a blank face. Corrected the woods warning grammar.
 - A triangular animal-crossing sign becomes a crossed-out portrait and bleeding BEWARE warning after the player looks away and collects supplies.

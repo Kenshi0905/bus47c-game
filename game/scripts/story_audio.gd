@@ -48,6 +48,10 @@ func on_phase(phase: String) -> void:
 		event.stream=preload("res://assets/audio/pack_forestry_reveal.wav")
 		event.volume_db=-5
 		event.play()
+	elif phase=="epilogue":
+		event.stream=preload("res://assets/audio/pack_forestry_reveal.wav")
+		event.volume_db=-16
+		event.play()
 	elif phase=="dead":
 		event.stream=preload("res://assets/audio/pack_death.wav")
 		event.volume_db=-8

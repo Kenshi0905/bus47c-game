@@ -6,7 +6,8 @@ const Story = preload("res://scripts/story.gd")
 const Player = preload("res://scripts/player.gd")
 const Forest = preload("res://scripts/forest.gd")
 const Passengers = preload("res://scripts/bus_passengers.gd")
-const MENU_FONT = preload("res://assets/ui/fonts/BebasNeue-Regular.ttf")
+const MENU_FONT = preload("res://assets/ui/fonts/menu_font.tres")
+const BODY_FONT = preload("res://assets/ui/fonts/ShareTechMono-Regular.ttf")
 const SAVE := "user://checkpoint.json"
 const HorrorSigns=preload("res://scripts/horror_signs.gd")
 var signs: Node3D
@@ -110,6 +111,8 @@ func _ready() -> void:
 	if "--capture" in OS.get_cmdline_user_args(): call_deferred("capture_preview")
 	if "--checks09" in OS.get_cmdline_user_args():call_deferred("narrative_test")
 	if "--capture09" in OS.get_cmdline_user_args():call_deferred("narrative_capture")
+	if "--checks10" in OS.get_cmdline_user_args():call_deferred("polish_test")
+	if "--capture10" in OS.get_cmdline_user_args():call_deferred("polish_capture")
 
 func _setup_inputs() -> void:
 	var keys := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "sprint": KEY_SHIFT, "interact": KEY_E, "pause_game": KEY_ESCAPE, "stand": KEY_SPACE, "notes": KEY_TAB}
@@ -160,6 +163,7 @@ func block(parent: Node3D, pos: Vector3, size: Vector3, color: String, solid: bo
 
 func text3(parent: Node3D, value: String, pos: Vector3, size: int = 40, color: Color = Color("d4c49b")) -> Label3D:
 	var label := Label3D.new()
+	label.font=BODY_FONT
 	label.text = value
 	label.font_size = size
 	label.pixel_size = 0.006
@@ -404,6 +408,7 @@ func play_sound(file: String) -> void:
 
 func label(value: String, size: int, color: Color = Color("ded8c7")) -> Label:
 	var l := Label.new()
+	l.add_theme_font_override("font",BODY_FONT)
 	l.text = value
 	l.add_theme_font_size_override("font_size",size)
 	l.add_theme_color_override("font_color",color)
@@ -419,7 +424,7 @@ func button(value: String, callback: Callable) -> Button:
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	b.add_theme_font_override("font", MENU_FONT)
-	b.add_theme_font_size_override("font_size", 26)
+	b.add_theme_font_size_override("font_size", 23)
 	var normal := StyleBoxEmpty.new()
 	normal.content_margin_left = 17
 	normal.content_margin_right = 17
@@ -480,6 +485,9 @@ func _build_ui() -> void:
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
 	var root := Control.new()
+	var interface_theme := Theme.new()
+	interface_theme.default_font=BODY_FONT
+	root.theme=interface_theme
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(root)
@@ -551,10 +559,10 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   v0.9.0-beta.1", 16, Color("9d9f94"))
+	var version := label("BUS 47C   v0.10.0-beta.1", 14, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
-	version.position = Vector2(1070, 666)
+	version.position = Vector2(982, 666)
 	paper_surface=ColorRect.new()
 	root.add_child(paper_surface)
 	paper_surface.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -614,7 +622,7 @@ func show_menu(is_pause: bool) -> void:
 	menu_is_pause = is_pause
 	menu_page = "title"
 	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = true
-	for sound in [aftermath.trail_audio,watcher_director.departure.sound]:
+	for sound in [aftermath.trail_audio,watcher_director.departure.sound,aftermath.presentation.end_sound]:
 		if is_instance_valid(sound):sound.stream_paused=true
 	player.enabled = false
 	player.reset_zoom()
@@ -628,7 +636,7 @@ func show_menu(is_pause: bool) -> void:
 	hud.hide()
 	clear_box(menu_box)
 	var logo := TextureRect.new()
-	logo.texture = preload("res://assets/ui/bus47c-logo.svg")
+	logo.texture = preload("res://assets/ui/bus47c-logo-f.png")
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	logo.custom_minimum_size = Vector2(360, 140)
@@ -651,9 +659,9 @@ func show_information(page: String, is_pause: bool) -> void:
 	clear_box(menu_box)
 	menu_heading("HOW TO PLAY" if page == "controls" else "CREDITS")
 	menu_spacer(12)
-	var copy := "WASD   Move\nMOUSE   Look\nRIGHT MOUSE   Hold to zoom\nE   Interact and sit\nLEFT MOUSE   Defend with knife\nSPACE   Stand up\nTAB   Shift notes\nSHIFT   Walk faster\nESC   Pause or back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
+	var copy := "WASD   Move\nMOUSE   Look\nRIGHT MOUSE   Hold to zoom or peek\nE   Interact and sit\nLEFT MOUSE   Defend with knife\nSPACE   Stand up\nTAB   Shift notes\nSHIFT   Walk faster\nESC   Pause or back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
 	if page == "credits":
-		copy = "BUS 47C\nStory and direction: Ashmit Avash\n\nA game built in Godot\nMenu design: Canva and original vectors\nFont: Bebas Neue, SIL OFL\n\nFootstep references\nEffecism and Kerma T.C.\nEdited for this private beta.\n\nSound cues: Game Dev Tools HQ\nHorror Bundle excerpts\nOriginal additional sound design\nMore lore is in development."
+		copy = "BUS 47C\nStory and direction: Ashmit Avash\n\nA game built in Godot\nMenu artwork: original design\nFont: Share Tech Mono, SIL OFL\n\nFootstep references\nEffecism and Kerma T.C.\n\nSound cues: Game Dev Tools HQ\nHorror Bundle excerpts\nOriginal additional sound design\nMore lore is in development."
 	var body := label(copy, 18, Color("bebfb5"))
 	menu_box.add_child(body)
 	menu_spacer(18)
@@ -666,14 +674,14 @@ func resume_game() -> void:
 	paused = false
 	menu_ambience.stop()
 	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = false
-	for sound in [aftermath.trail_audio,watcher_director.departure.sound]:
+	for sound in [aftermath.trail_audio,watcher_director.departure.sound,aftermath.presentation.end_sound]:
 		if is_instance_valid(sound):sound.stream_paused=false
 	menu.hide()
 	menu_chrome.hide()
 	menu_shade.hide()
 	player.camera.make_current()
 	hud.show()
-	player.enabled = not modal and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare","backstab","forestry_fall","waking"])
+	player.enabled = not modal and not aftermath.controls_locked()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if modal else Input.MOUSE_MODE_CAPTURED
 
 func start_game(checkpoint: int, saved_seed: int = -1) -> void:
@@ -763,9 +771,7 @@ func set_objective(value: String, persistent: bool=false) -> void:
 func paper_label(value: String, size: int) -> Label:
 	var text := label(value,size,Color("2f342f"))
 	text.add_theme_color_override("font_shadow_color",Color.TRANSPARENT)
-	var typewriter := SystemFont.new()
-	typewriter.font_names=PackedStringArray(["Courier New","Liberation Mono","monospace"])
-	text.add_theme_font_override("font",typewriter)
+	text.add_theme_font_override("font",BODY_FONT)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return text
 
@@ -779,6 +785,10 @@ func show_document(kind: String) -> void:
 	modal_panel.show()
 	paper_surface.show()
 	clear_box(modal_box)
+	modal_panel.position=Vector2(205,32) if kind=="newspaper" else Vector2(315,48)
+	modal_panel.custom_minimum_size=Vector2(870,630) if kind=="newspaper" else Vector2(650,520)
+	modal_panel.size=modal_panel.custom_minimum_size
+	modal_box.add_theme_constant_override("separation",10 if kind=="newspaper" else 18)
 	var title := paper_label({"note":"47C RELIEF SERVICE","journal":"SHIFT NOTES","ticket":"47C ONE WAY","newspaper":"THE LOOMESVILLE GAZETTE"}.get(kind,"SHIFT NOTES"),30)
 	if Aftermath.District.DOCUMENTS.has(kind):title.text=Aftermath.District.DOCUMENTS[kind][0]
 	title.add_theme_font_override("font",MENU_FONT)
@@ -788,7 +798,6 @@ func show_document(kind: String) -> void:
 	var copy := "47C is the last bus to Loomesville.\n\nThe driver will not answer you.\nBoard anyway.\n\nIf you hear someone behind you in the forest, keep walking.\n\nDo not look back."
 	if kind=="journal": copy = "End of shift. Get home.\n\n" + objective.text + "\n\nRoute\nFirewatch, Mill Road, Old Quarry\nPine Crossing, St Bride's, Loomesville\n\nEmpty seats are available.\nE to sit. Space to stand."
 	if kind=="ticket":copy="SINGLE FARE\n\nFROM: FIREWATCH SHELTER\nTO:   LOOMESVILLE\n\nSERVICE: 47C\nTIME:    02:36\n\nOne passenger.\n\nThe paper smells of smoke."
-	if kind=="newspaper":copy="NIGHT BUS DESTROYED BY FIRE\n\nNo survivors were recovered from service 47C. Investigators suspect arson.\n\nPolice seek the state firewatcher assigned to Loomesville Forest.\n\nBelow the headline is your photograph.\n\nThe clock above the counter reads 02:36."
 	if Aftermath.District.DOCUMENTS.has(kind):copy=Aftermath.District.DOCUMENTS[kind][1]
 	if kind=="journal":
 		var journal := RichTextLabel.new()
@@ -797,13 +806,14 @@ func show_document(kind: String) -> void:
 		journal.scroll_active=false
 		journal.custom_minimum_size.x=520
 		journal.add_theme_font_size_override("normal_font_size",18)
-		var typewriter := SystemFont.new()
-		typewriter.font_names=PackedStringArray(["Courier New","Liberation Mono","monospace"])
-		journal.add_theme_font_override("normal_font",typewriter)
+		journal.add_theme_font_override("normal_font",BODY_FONT)
 		journal.text=preload("res://scripts/shift_journal.gd").content(self)
 		modal_box.add_child(journal)
-	else:modal_box.add_child(paper_label(copy,21))
-	var close := button("FOLD NOTE  [E]" if kind=="note" else "CLOSE NOTES  [TAB]",close_document)
+	elif kind=="newspaper":
+		clear_box(modal_box)
+		modal_box.add_child(preload("res://scripts/newspaper.gd").page(self))
+	else:modal_box.add_child(paper_label(copy,20))
+	var close := button("FOLD NOTE  [E]" if kind=="note" else ("PUT DOWN PAPER  [E]" if kind=="newspaper" else "CLOSE NOTES  [TAB]"),close_document)
 	close.add_theme_color_override("font_color",Color("30382f"))
 	close.add_theme_font_size_override("font_size",20)
 	for state in ["normal","hover","pressed","focus"]:
@@ -823,7 +833,7 @@ func close_document() -> void:
 	modal_kind = ""
 	modal_panel.hide()
 	paper_surface.hide()
-	player.enabled = not paused and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare","backstab","forestry_fall","waking"])
+	player.enabled = not paused and not aftermath.controls_locked()
 	hud.visible = not paused
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if was_note and story.interact("note"): apply_stage()
@@ -911,7 +921,7 @@ func apply_stage(save: bool = true) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if aftermath.active and aftermath.phase in ["dead","ending","transit","jumpscare","backstab","forestry_fall","waking"]:return
+	if aftermath.active and aftermath.phase in ["dead","ending","epilogue","transit","jumpscare","backstab","forestry_fall","waking"]:return
 	if running and not paused and event.is_action_pressed("notes"):
 		if modal:close_document()
 		else:show_document("journal")
@@ -966,7 +976,8 @@ func _process(delta: float) -> void:
 		subtitle_frame.modulate.a=move_toward(subtitle_frame.modulate.a,minf(1,caption_time*3),delta*5)
 		if caption_time<=0:subtitle_frame.hide()
 	controls_hint.text="SPACE   Stand up     RMB   Zoom     TAB   Notes" if seated_index>=0 else "RMB   Zoom     TAB   Notes"
-	var cinematic: bool=aftermath.active and aftermath.phase in ["backstab","forestry_fall","waking"]
+	if aftermath.active and aftermath.phase=="closet":controls_hint.text="WASD   Shift position     MOUSE   Look     RMB   Peek"
+	var cinematic: bool=aftermath.active and aftermath.phase in ["backstab","forestry_fall","waking","epilogue"]
 	controls_hint.visible=not cinematic
 	reticle.visible=not cinematic
 	if cinematic:
@@ -1006,10 +1017,11 @@ func update_target() -> void:
 
 func quit_cleanly() -> void:
 	audio_story.reset()
-	for sound in [ambience, engine, drone, sfx, footsteps, menu_ambience]:
-		sound.stream_paused = false
-		sound.stop()
-		sound.stream = null
+	for node in find_children("*","",true,false):
+		if node is AudioStreamPlayer or node is AudioStreamPlayer3D or node is AudioStreamPlayer2D:
+			node.stream_paused = false
+			node.stop()
+			node.stream = null
 	await get_tree().create_timer(0.2).timeout
 	get_tree().quit()
 
@@ -1243,6 +1255,7 @@ func smoke_test() -> void:
 	assert(await preload("res://tests/district_checks.gd").run(self))
 	assert(await preload("res://tests/beta_checks.gd").run(self))
 	assert(await preload("res://tests/narrative_checks.gd").run(self))
+	assert(await preload("res://tests/polish_checks.gd").run(self))
 	print("PASS: six stops, moving deer, slow zoom-only watcher, seats, doors, forest failures/recovery, both routes and both endings")
 	quit_cleanly()
 
@@ -1260,7 +1273,7 @@ func capture_frame(name_text: String) -> void:
 	if folder.is_empty():folder="res://../docs" if OS.has_feature("editor") else "user://captures"
 	folder=ProjectSettings.globalize_path(folder).simplify_path()
 	DirAccess.make_dir_recursive_absolute(folder)
-	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.9.0-beta.1-"+name_text+".png"))
+	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.10.0-beta.1-"+name_text+".png"))
 
 func capture_preview() -> void:
 	get_tree().create_timer(90).timeout.connect(func():get_tree().quit(2))
@@ -1695,7 +1708,7 @@ func afternarrative_visibility() -> void:
 		aftermath.events.arrow_copy.hide()
 
 func test_run() -> bool:
-	for flag in ["--smoke","--capture","--checks09","--capture09"]:
+	for flag in ["--smoke","--capture","--checks09","--capture09","--checks10","--capture10"]:
 		if flag in OS.get_cmdline_user_args():return true
 	return false
 
@@ -1707,3 +1720,12 @@ func narrative_test() -> void:
 func narrative_capture() -> void:
 	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
 	await preload("res://tests/narrative_capture.gd").run(self)
+
+func polish_test() -> void:
+	get_tree().create_timer(180).timeout.connect(func():get_tree().quit(2))
+	assert(await preload("res://tests/polish_checks.gd").run(self))
+	quit_cleanly()
+
+func polish_capture() -> void:
+	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
+	await preload("res://tests/polish_capture.gd").run(self)

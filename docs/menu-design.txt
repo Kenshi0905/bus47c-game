@@ -1,37 +1,49 @@
-BUS 47C — EDITABLE MENU / VERSION 0.3.0
+BUS 47C
+ART AND TYPOGRAPHY IN BETA 0.10.0
 
-Editable Canva design:
-https://canva.link/d8ya37n55tculnv
+CURRENT DIRECTION
+The user selected menu concept F in the chat "Design Canva menu font options"
+and requested its distressed, widely spaced BUS 47C wordmark here.
+That reference was a generated image, not a font file. Share Tech Mono is
+the editable licensed typeface chosen to match its narrow monospaced style.
 
-The menu was designed in Canva and re-created as native Godot controls over
-the live 3D scene. The generated illustrative background is not a game asset.
-Following user review, the location kicker, subtitle and menu clock line were
-removed. The actual in-game dashboard clock remains part of the story.
+game/assets/ui/bus47c-logo-f.png
+Transparent raster wordmark extracted with the built-in image generation
+editor from the approved concept. No scene, menu buttons or footer are baked
+into it. It is used by the title menu and the simpler repository README.
 
-Figma was attempted first in Ashmit Avash's team. Its Starter-plan tool quota
-blocked design work after the blank file was created. The editable design is
-therefore in Canva, the user's permitted alternative.
+Image edit mode: background extraction.
+Reference: approved menu concept F, supplied in the design chat.
+Prompt: "Extract ONLY the exact upper-left BUS 47C wordmark from the approved
+menu concept F. Preserve its widely spaced narrow lettering, pale cream
+colour, irregular distress and ghosted edges. Use an actual transparent
+background. Exclude the F label, backdrop, menu options and footer. Do not
+add icons or decorations."
 
-EDIT THE GAME
-game/assets/ui/bus47c-logo.svg — editable outlined letters, weathering mask
-and bus emblem. Open in a vector editor; no raster backdrop is baked in.
-game/assets/ui/selection-brush.svg — selected/focused menu brush.
-game/assets/ui/menu_atmosphere.gdshader — title-only vignette and film grain.
-game/scripts/main.gd — menu choices, layout, title camera, tie emission.
-game/scripts/forest.gd — tree shapes, densities, seeded layout and clearings.
+game/assets/ui/fonts/ShareTechMono-Regular.ttf
+game/assets/ui/fonts/ShareTechMono-OFL.txt
+Source: https://github.com/google/fonts/tree/main/ofl/sharetechmono
+SIL Open Font License. The regular face serves readable body text and world
+labels; menu_font.tres adds two pixels of tracking for menu headings/buttons.
+The older Bebas Neue font and vector logo are retained as editable history.
 
-tools/make_menu_art.py regenerates both SVG files with Python + fonttools.
-The font is bundled at game/assets/ui/fonts/BebasNeue-Regular.ttf with its
-SIL Open Font License in OFL.txt. Source: google/fonts, ofl/bebasneue.
-Editing an SVG directly is supported; regeneration overwrites those edits.
+EDITABLE UI
+game/scripts/main.gd: native controls, title camera, document layout.
+game/assets/ui/fonts/menu_font.tres: menu type and tracking.
+game/assets/ui/selection-brush.svg: focused menu highlight.
+game/assets/ui/menu_atmosphere.gdshader: title grain and vignette.
+game/scripts/story_presentation.gd: timed action UI and closing scenes.
+game/scripts/shift_journal.gd: completed, active and abandoned tasks.
+game/scripts/newspaper.gd: newspaper masthead, columns, photographs and copy.
+game/assets/ui/newsprint.gdshader: monochrome printed-photo treatment.
+tools/press_photos.gd: render the press photographs from editable game models.
 
-Forest meshes are generated from shared low-poly shapes. Chunks are 50 m
-long on each side of the road, with 165 m tree and 80 m understory culling.
-The current chapter does not yet include off-road forest exploration.
+The diner uses procedural booths, counters, stools, blinds and lights in
+game/scripts/town_district.gd. Its vinyl and tile treatments remain editable
+in game/assets/ui/aged_surface.gdshader. No reference photograph is shipped.
 
-VALIDATION
-Windows Godot 4.7.2 import, story tests and scene smoke checks pass.
-Rendered title, settings, doorway, windshield, passengers, deer and watcher
-views are recorded in docs/v0.3-*.png. The smoke checks cover menu back/focus,
-camera handoff, forest clearings, physical boarding, closed-door collision,
-footstep gating, bus travel/pause and chapter completion.
+EARLIER DESIGN
+Editable Canva layout: https://canva.link/d8ya37n55tculnv
+The previous editable SVG wordmark is game/assets/ui/bus47c-logo.svg.
+tools/make_menu_art.py regenerates that older SVG and the selection brush.
+Regenerating the older SVG does not overwrite the current F wordmark.

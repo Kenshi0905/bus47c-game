@@ -17,8 +17,8 @@ Create annotated tags at the **tested game commit**. A published tag and its ass
 5. Export from a clean checkout so `BUILD_INFO.txt` identifies the matching revision. Package the executable and data pack with the notices.
 6. Verify the ZIP contents and CRC, then create `SHA256SUMS.txt` with the ZIP's SHA-256 hash and exact filename.
 7. Create a **draft GitHub release** using the existing tag. Add notes and upload the Windows ZIP and checksum file. Verify the uploaded sizes and digests before publishing.
-8. Publish unfinished builds with **Set as a pre-release** enabled. Link the current beta explicitly from the README because it is a prerelease, not a stable release.
-9. Verify the release page and assets, then update the README's current-build and previous-build links.
+8. Publish the featured playable build with **Set as latest release** enabled and **Set as a pre-release** disabled so GitHub can feature it in the repository's Releases sidebar. Keep **Beta** in its title, tag, download filename and notes while the game remains unfinished. GitHub's latest-release designation identifies the recommended download; it does not mean the game is finished. Additional experimental builds may use the pre-release flag without replacing the featured build.
+9. Verify the native Releases sidebar, the latest-release endpoint and both uploaded assets, then update the README's current-build and previous-build links. Leave the repository's About website field empty unless there is a separate project website.
 
 ## Release notes
 

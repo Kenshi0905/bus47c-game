@@ -1,25 +1,28 @@
 BUS 47C
-Private Windows beta 0.9.0-beta.1
+Windows beta 0.10.0-beta.1
 
 PLAY
 Extract the whole ZIP into a folder, then double-click Bus47C.exe.
 Keep Bus47C.pck beside Bus47C.exe. No Godot installation is needed.
-Choose New Journey to experience the complete updated passenger sequence.
+Choose New Journey to experience the complete current sequence.
 
 NEW IN THIS BETA
-Passenger faces shed their features gradually. The deer warning changes
-after you look away and collect supplies. Stay near the broken bus while
-searching; the woods beyond the clearing are dangerous.
-The shortcut ending now continues along a walkable Forestry Way, with a
-direction arrow, first-person collapse, red-tie reveal and morning wake-up.
-Bus arrivals pass through the town gate into a different, bloodier scene.
-Shop signs, permanent coffee-shop blackout and burial handling are updated.
+The Night Owl Diner has red vinyl booths, cream tables, lunch-counter stools,
+blinds and warm ceiling lights. The selected distressed title and matching
+Share Tech Mono typography now carry through menus, notes and world labels.
+Inspect town residents with E for reactions and clues, without name labels.
+Shift and look around inside the wardrobe. Hold right mouse to peek;
+the countdown shows when daylight arrives. Leaving early remains dangerous.
+Repairing the engine, burial and making coffee have timed progress feedback.
+The newspaper has columns and in-game photographs. Both routes conclude with
+a first-person closing scene, audio and credits before the results menu.
+Completed journal tasks are crossed out; an abandoned route is labelled.
 
 CONTROLS
-WASD: walk
+WASD: walk or shift position while hiding
 Mouse: look
-Hold right mouse button: zoom
-E: interact, read, collect, sit or defend at close range
+Hold right mouse button: zoom or peek while hiding
+E: inspect, interact, read, collect, sit or defend at close range
 Left mouse button: defend with an equipped knife
 Space: stand up
 Shift: walk faster
@@ -27,20 +30,22 @@ Tab: shift notes and current tasks
 Escape: pause, settings, main menu and Exit to Windows
 
 BETA STATUS
-This is a playable beta, with more lore and polish still to come.
-Both story routes are included. Shop interiors and House 17 are explorable;
-other town houses are exterior scenery. Saves are stored locally.
-This package targets Windows x86_64 with OpenGL 3.3 compatibility graphics.
-Other platforms are not included in this package.
+Both routes are playable. More lore and polish are still in development.
+Four shops and House 17 have interiors; other houses are exterior scenery.
+The mirror is a staged portrait. Defense is a close-range interaction.
+Saves are local. Timers freeze while paused or reading notes.
+Windows x86_64 and OpenGL 3.3 are required for this package.
+Other graphical platforms and broader hardware support remain unverified.
+Contains blood, disturbing imagery and jumpscares.
 
-If reporting a problem, include the stop or location, what you were doing,
-and whether you started a New Journey or continued a checkpoint.
+Report a bug with the version, route, location and steps to reproduce it:
+https://github.com/Kenshi0905/bus47c-game/issues
 
 CREDITS AND NOTICES
+Story and direction: Ashmit Avash.
 Created with Godot Engine 4.7.2, https://godotengine.org/license/
-Engine notices and the Bebas Neue font licence are in the Licenses folder.
-Original procedural models, environment art and synthesized audio belong to
-this project. Edited Horror Bundle cues are included following the user's
-explicit confirmation of free use. Audio sources, edited intervals and the
-permission record are included in AUDIO_SOURCES.txt. This remains a private
-evaluation build with additional lore and polish still in development.
+Engine, third-party, Share Tech Mono and legacy Bebas Neue notices are in
+the Licenses folder. Menu artwork follows the user-approved concept F.
+The newspaper photographs are rendered from the project's game models.
+Audio sources, edited intervals and permission provenance are recorded in
+AUDIO_SOURCES.txt. No full reference videos are included.

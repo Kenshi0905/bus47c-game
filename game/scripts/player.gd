@@ -10,6 +10,8 @@ var movement_scale := 1.0
 var collider: CollisionShape3D
 var walking_now := false
 var travelled_last_frame := 0.0
+var confined := false
+var hiding_bounds := AABB()
 signal footstep
 
 func _ready() -> void:
@@ -39,8 +41,9 @@ func _physics_process(delta: float) -> void:
 	travelled_last_frame=0
 	if not enabled: return
 	zooming=Input.is_action_pressed("zoom")
-	camera.fov=lerpf(camera.fov,normal_fov*(.56 if zooming else 1.0),1-exp(-delta*12))
-	camera.position.y = move_toward(camera.position.y, 1.28 if seated else 1.57, delta * 1.8)
+	camera.fov=lerpf(camera.fov,normal_fov*((.88 if confined else .56) if zooming else 1.0),1-exp(-delta*12))
+	camera.position.z=move_toward(camera.position.z,-.19 if confined and zooming else 0.0,delta*.8)
+	camera.position.y = move_toward(camera.position.y, 1.28 if seated else (1.45 if confined else 1.57), delta * 1.8)
 	if seated:
 		velocity = Vector3.ZERO
 		return
@@ -48,12 +51,16 @@ func _physics_process(delta: float) -> void:
 	var direction := global_transform.basis * Vector3(input.x, 0, input.y)
 	var speed := 1.8 if not Input.is_action_pressed("sprint") else 2.8
 	speed*=movement_scale
+	if confined:speed=.45
 	velocity.x = direction.x * speed
 	velocity.z = direction.z * speed
 	if not is_on_floor(): velocity.y -= 18.0 * delta
 	else: velocity.y = -0.1
 	var before := position
 	move_and_slide()
+	if confined:
+		global_position.x=clampf(global_position.x,hiding_bounds.position.x,hiding_bounds.end.x)
+		global_position.z=clampf(global_position.z,hiding_bounds.position.z,hiding_bounds.end.z)
 	var travelled := Vector2(position.x-before.x,position.z-before.z).length()
 	travelled_last_frame=travelled
 	walking_now=input.length()>.1 and travelled>.001 and is_on_floor()

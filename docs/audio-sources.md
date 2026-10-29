@@ -30,6 +30,8 @@ The user supplied [Horror Bundle preview](https://www.youtube.com/watch?v=D7SYOU
 
 `tools/edit_bundle_audio.py` trims the audio-only source, removes DC offset, bounds peaks and applies fades. Files are PCM16 stereo at 44.1 kHz. The 24-second path loop uses a 350 ms overlap; one-shot peaks range from -7.9 to -3.3 dBFS. Runtime mixing ducks the bed for important events and pauses it with the menu. The existing footstep recordings are unchanged.
 
+Beta 0.10.0 also uses the existing reveal excerpt, at a lower level, beneath the closing scenes. Original positional knock and chime cues punctuate the last first-person beat. No additional source audio was downloaded for this update.
+
 [How To Design Sounds For Horror Games](https://www.youtube.com/watch?v=TFLWaTG0NTM) by Marshall McGee is a technique reference, not an audio source. Relevant sections: 1:26 sonic space and close detail; 4:17 tension, silence and unexpected outcomes; 6:19 character-specific sound motifs. The tutorial's recordings are not included.
 
 `tools/edit_horror_audio.py` generates five original PCM16 cues at 44.1 kHz from deterministic filtered noise and oscillators. `beta_path_bed.wav` is a seamless 24-second stereo atmosphere. `beta_tension.wav` is a 7.2-second restrained swell. `beta_death.wav` is a 3.6-second descending impact. `beta_scare.wav` is a 1.1-second textured attack. `beta_tree_zip.wav` is a 0.9-second mono rush with a repeated wooden motif for positional playback. One-shots have faded edges, and different amplitude ceilings preserve dynamic contrast; all peaks remain below -3 dBFS. These cues do not replace the earlier reference footsteps, whose distribution status remains as documented above.

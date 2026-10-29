@@ -57,6 +57,8 @@ var attack_ready_time := 0.0
 var look_back_armed := false
 var look_back_origin := Vector3.ZERO
 var scare_limbs: Array[Node3D]=[]
+var presentation: Node
+const CLOSET_SECONDS := 90.0
 
 func point(x: float, z: float) -> Vector3:
 	return Route.point(x,0,z)
@@ -96,6 +98,9 @@ func setup(owner_game) -> void:
 	town_horror=preload("res://scripts/town_horror.gd").new()
 	town.add_child(town_horror)
 	town_horror.setup(game,self)
+	presentation=preload("res://scripts/story_presentation.gd").new()
+	add_child(presentation)
+	presentation.setup(game,self)
 	reset()
 
 func hotspot(id: String, parent: Node3D, local: Vector3, title: String, radius: float=2.4) -> void:
@@ -251,14 +256,18 @@ func build_town() -> void:
 	hotspot("mirror",home,Vector3(-3.4,1.7,-4.8),"Look into the mirror",2.6)
 	game.block(home,Vector3(3.5,1.35,-3.7),Vector3(1.8,2.7,.1),"403d32",true)
 	for x in [2.6,4.4]:game.block(home,Vector3(x,1.35,-3.1),Vector3(.1,2.7,1.3),"403d32",true)
-	for x in [3.02,3.98]:
-		var door: MeshInstance3D=game.block(home,Vector3(x,1.35,-2.48),Vector3(.89,2.7,.07),"544d39")
-		wardrobe_doors.append(door)
+	for side in [-1,1]:
+		var hinge := Node3D.new()
+		home.add_child(hinge)
+		hinge.position=Vector3(3.5+side*.88,0,-2.48)
+		game.block(hinge,Vector3(-side*.435,1.35,0),Vector3(.86,2.7,.07),"544d39")
+		game.block(hinge,Vector3(-side*.77,1.26,.06),Vector3(.035,.2,.035),"b09b67")
+		wardrobe_doors.append(hinge)
 	hotspot("closet",home,Vector3(3.5,1.4,-2.4),"Hide in the closet",2.3)
 	game.block(home,Vector3(3.4,.95,3),Vector3(2.5,.15,1.1),"625a46",true)
 	for x in [2.4,4.4]:
 		for z in [2.6,3.4]:game.block(home,Vector3(x,.45,z),Vector3(.12,.9,.12),"4a4739",true)
-	game.block(home,Vector3(3.9,1.1,3),Vector3(.5,.018,.65),"c4b998")
+	preload("res://scripts/newspaper.gd").world_paper(game,home,Vector3(3.9,1.1,3))
 	var mug := MeshInstance3D.new()
 	var cup := CylinderMesh.new()
 	cup.top_radius=.095
@@ -308,6 +317,9 @@ func daylight(enabled: bool) -> void:
 	game.moon_light.light_energy=.8 if enabled else .14
 
 func reset() -> void:
+	if is_instance_valid(presentation):presentation.reset()
+	game.player.confined=false
+	game.player.camera.position.z=0
 	if is_instance_valid(events):events.reset()
 	if is_instance_valid(town_horror):town_horror.reset()
 	arrival_prints.hide()
@@ -340,7 +352,9 @@ func reset() -> void:
 	for eye in eyes:eye.show()
 	for part in mouth_parts:part.show()
 	nose.show()
-	for door in wardrobe_doors:door.show()
+	for i in range(wardrobe_doors.size()):
+		wardrobe_doors[i].show()
+		wardrobe_doors[i].rotation.y=(-.9 if i==0 else .9)
 	held_blade.hide()
 	opponent.position=HOUSE+Vector3(0,.12,-1)
 	opponent.rotation=Vector3.ZERO
@@ -426,6 +440,8 @@ func restore(data: Dictionary) -> void:
 	if data.get("hazard_changed",false) or data.get("coffee_blackout",false):game.save_checkpoint()
 
 func place_player(at: Vector3, look: Vector3) -> void:
+	game.player.confined=false
+	game.player.camera.position.z=0
 	game.passengers.release_player_seat(game.seated_index)
 	game.seated_index=-1
 	game.player.set_seated(false,Vector3.ZERO)
@@ -472,7 +488,7 @@ func allowed() -> Array:
 				if i not in fruit_taken:ids.append("fruit"+str(i))
 			return ids
 		"fork":return ["shortcut","take_bus"]+repairs.available()
-		"town":return ["knife","shop_pizza","shop_diner","shop_mart","shop_coffee_shop"]
+		"town":return ["knife","shop_pizza","shop_diner","shop_mart","shop_coffee_shop"]+(town_horror.resident_spots if branch=="bus" else [])
 		"confront":return ["defend"] if knife else ["knife"]
 		"mirror":return ["mirror"] if mirror_wait<=0 else []
 		"escape":return ["escape","shop_pizza","shop_diner","shop_mart","shop_coffee_shop"]
@@ -487,7 +503,7 @@ func update_target() -> void:
 	game.prompt.text=""
 	if phase=="closet":
 		game.current_target="leave_closet"
-		game.prompt.text="E   Leave the closet. Stay hidden until daylight."
+		game.prompt.text="RMB   Peek through the door     E   Leave hiding"
 		return
 	var best := .65
 	for id in allowed():
@@ -522,7 +538,9 @@ func interact(id: String) -> void:
 		fail("You opened the door before morning.")
 		return
 	if id not in allowed():return
-	if id.begins_with("shop_"):
+	if id.begins_with("resident_"):
+		town_horror.inspect(id)
+	elif id.begins_with("shop_"):
 		game.show_document(id)
 	elif id.begins_with("part"):
 		if repairs.collect(id):
@@ -617,13 +635,15 @@ func interact(id: String) -> void:
 		game.play_sound("dig")
 	elif id=="closet":
 		place_player(HOUSE+Vector3(3.5,.15,-3.22),HOUSE+Vector3(3.5,1.5,-1))
-		game.player.enabled=false
+		game.player.confined=true
+		game.player.hiding_bounds=AABB(HOUSE+Vector3(2.98,0,-3.34),Vector3(1.04,2,.39))
+		for door in wardrobe_doors:door.rotation.y=0
 		closet_beat=0
 		set_phase("closet","Stay inside. Wait for daylight and birdsong.")
 	elif id=="coffee":
-		coffee=true
+		game.player.enabled=false
+		set_phase("brewing","Make a cup of coffee.")
 		game.play_sound("pour")
-		game.set_objective("Read the morning newspaper on the counter.")
 	elif id in ["newspaper","ticket"]:game.show_document(id)
 
 func update(delta: float) -> void:
@@ -642,6 +662,8 @@ func update(delta: float) -> void:
 	town_horror.update()
 	if phase in ["dead","ending"]:return
 	state_time+=delta
+	presentation.update()
+	if phase in ["epilogue","ending"]:return
 	events.update(delta)
 	if phase in ["backstab","forestry_walk","forestry_fall","waking"]:return
 	mirror_wait=maxf(0,mirror_wait-delta)
@@ -743,13 +765,22 @@ func update(delta: float) -> void:
 			set_phase("closet_ready","Hide in the wardrobe. Stay inside until daylight.")
 			save_at("closet")
 	elif phase=="closet":
-		status.text="STAY HIDDEN"
+		var remaining := maxi(0,ceili(CLOSET_SECONDS-state_time))
+		status.text="DAYLIGHT IN   %d:%02d" % [remaining/60,remaining%60]
+		for i in range(wardrobe_doors.size()):
+			var open := (-.30 if i==0 else .30) if Input.is_action_pressed("zoom") else 0.0
+			wardrobe_doors[i].rotation.y=lerp_angle(wardrobe_doors[i].rotation.y,open,1-exp(-delta*5))
 		var times := [12.0,32.0,58.0]
 		if closet_beat<3 and state_time>=times[closet_beat]:
 			game.play_sound("knock" if closet_beat!=1 else "cry")
 			game.describe_sound(["Knocking at the wardrobe","A distant cry outside","Footsteps stop outside the door"][closet_beat])
 			closet_beat+=1
-		if state_time>=90:start_dawn()
+		if state_time>=CLOSET_SECONDS:start_dawn()
+	elif phase=="brewing":
+		if state_time>=4:
+			coffee=true
+			game.player.enabled=true
+			set_phase("dawn","Read the morning newspaper on the counter.")
 	elif phase=="mirror":
 		mirror_face.position.x=-3.4+clampf((game.player.global_position.x-HOUSE.x+3.4)*.1,-.15,.15)
 
@@ -918,14 +949,20 @@ func start_dawn() -> void:
 	daylight(true)
 	game.play_sound("birds")
 	place_player(HOUSE+Vector3(3.5,.15,-1.4),HOUSE+Vector3(3.5,1.2,3))
+	for i in range(wardrobe_doors.size()):wardrobe_doors[i].rotation.y=-.9 if i==0 else .9
 	set_phase("dawn","Daylight. It is quiet. Make coffee, then read the newspaper.")
 	save_at("dawn")
 
 func document_closed(kind: String) -> void:
-	if kind=="ticket" and phase=="loop":complete("THE LAST SERVICE","One passenger. One ticket.\nDestination: Loomesville.\n\nThe clock is still 02:36.")
-	elif kind=="newspaper" and phase=="dawn":complete("THE MORNING EDITION","The newspaper names you as the suspect.\nYou remember the ride.\nYou cannot remember lighting the match.")
+	if (kind=="ticket" and phase=="loop") or (kind=="newspaper" and phase=="dawn"):
+		presentation.start_ending(kind)
+
+func controls_locked() -> bool:
+	return active and phase in ["burying","repairing","brewing","epilogue","transit","jumpscare","backstab","forestry_fall","waking","dead","ending"]
 
 func fail(reason: String) -> void:
+	presentation.reset()
+	game.player.confined=false
 	events.blur.hide()
 	events.own_body.hide()
 	game.transition_shade.hide()

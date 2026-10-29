@@ -150,7 +150,23 @@ func build_hazard() -> void:
 	portrait.scale=Vector3(.46,.46,.05)
 	for part in portrait.find_children("*","MeshInstance3D",true,false):
 		if part.get_aabb().get_center().y<1.1:part.hide()
-	for side in [-1,1]:stroke(human_face,Vector3(-.43,-.42*side,.14),Vector3(.43,.47*side,.14),.065,"9a1814")
+	# Unequal finger-painted strokes, with torn edges and smeared second passes.
+	var rng := RandomNumberGenerator.new()
+	rng.seed=473609
+	for side in [-1,1]:
+		var a := Vector3(-.48,-.43*side,.15)
+		var b := Vector3(.43,.49*side,.15)
+		var last := a
+		for i in range(1,19):
+			var t := float(i)/18
+			var next := a.lerp(b,t)+Vector3(rng.randf_range(-.025,.025),rng.randf_range(-.018,.018),0)
+			var width := rng.randf_range(.036,.074)*(1-.45*t)
+			stroke(human_face,last,next,width,"98271d" if i%4 else "731911")
+			stroke(human_face,last+Vector3(.019,0,.004),next+Vector3(.032,0,.004),width*.18,"bb4930")
+			last=next
+	for i in range(7):
+		var at := Vector3(rng.randf_range(-.35,.4),rng.randf_range(-.35,.25),.155)
+		stroke(human_face,at,at+Vector3(-.013,-rng.randf_range(.04,.18),0),.009,"7e2118")
 	# Scratched blood lettering, retained as individually editable strokes.
 	var letters=[[[0,0],[0,1],[.55,.85],[0,.52],[.55,.25],[0,0]],[[.55,1],[0,1],[0,0],[.55,0],[0,0],[0,.5],[.4,.5]],[[0,1],[.12,0],[.3,.5],[.48,0],[.6,1]],[[0,0],[.3,1],[.6,0],[.47,.4],[.14,.4]],[[0,0],[0,1],[.55,.8],[0,.5],[.55,0]],[[.55,1],[0,1],[0,0],[.55,0],[0,0],[0,.5],[.4,.5]]]
 	for i in range(letters.size()):

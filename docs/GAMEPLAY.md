@@ -4,7 +4,7 @@
 
 A short first-person low-poly horror game about a firewatcher's ride home to Loomesville.
 
-## Play beta 0.9.0
+## Play beta 0.10.0
 
 For the standalone Windows beta, extract the complete ZIP into a folder and run **Bus47C.exe** beside its **Bus47C.pck**. Read the included beta notes. More lore is planned; this is not the final release.
 
@@ -36,13 +36,25 @@ Characters use editable mesh parts with procedural walking and separate seated p
 
 Run `powershell -ExecutionPolicy Bypass -File tools/test.ps1`. Tests cover all six stops, deer timing/movement, physical boarding and breakdown exit, seats/passengers, window-side watcher placement, zoom-only disappearance, pause and save recovery, scattered fruit, empty-backward-view and movement-triggered jumpscare, the entire physical golden-path walk without E, doorway knife pickup and both attack controls, the extended final ride, both branches, physical body dragging through the back doorway, burial/closet failure and retries, and both ending documents. GitHub Actions runs the corresponding import and smoke tests on pushes and pull requests. Rendering previews are in `docs/v0.6-*.png`, `docs/v0.6.1-*.png` and `docs/v0.6.2-*.png`. The `docs/v0.7.0-*.png` previews include passenger stares, blank faces, roadside bodies, blood-streaked signs, the town, all three shops, the house hall and the earlier failure-menu regressions. New checks physically walk through each shop entrance in both directions, read its note and verify the departure schedule, stare duration, blank face, stationary shelter passenger and body reveal. Beta checks also cover repair inventory and pause locks, the town side detour, four shops, mirror activation, sound pausing and the tree dash. Current native previews are in `docs/v0.9.0-beta.1-*.png`. New checks walk Forestry Way through the fence opening, exercise the boundary death and retry, changing deer warning, persistent coffee blackout, branch-specific bodies and prints, and released-body burial.
 
-Geometry and synthesized ambience are original project assets. Footsteps are edited from the two YouTube clips supplied by the user; see [audio sources](audio-sources.md) for attribution and the unresolved public-release licence status. Godot is MIT-licensed: https://godotengine.org/license/ . Include engine and third-party notices when distributing exported builds.
+Geometry and synthesized ambience are original project assets. Footsteps are edited from the two YouTube clips supplied by the user; see [audio sources](audio-sources.md) for attribution and permission provenance. Godot is MIT-licensed: https://godotengine.org/license/ . Include engine and third-party notices when distributing exported builds.
 
 ## Beta audio and export
 
 The golden path and Forestry Way use an edited Horror Bundle mood cue, with sparse original tension swells and pursuit footsteps that stop immediately when you stop. Separate edited cues mark the collapse, ambush and death. These four excerpts are included following the user's explicit free-use confirmation, recorded with source intervals in the audio-source notes. The watcher rush remains positional. Atmosphere ducks under events, menus pause ongoing tension, and death audio resolves over the visible retry screen. The supplied sound-design tutorial informed the arrangement.
 
-For a reproducible Windows build, obtain the pinned export templates with `python tools/fetch_windows_template.py`, then run `powershell -ExecutionPolicy Bypass -File tools/export_beta.ps1`. The default output is ignored `work/beta-windows`; `-ZipPath` packages a chosen delivery path. The export includes the engine, third-party and font notices. This beta is for private Windows testing; the earlier reference footstep licensing still needs resolution before public distribution.
+For a reproducible Windows build, obtain the pinned export templates with `python tools/fetch_windows_template.py`, then run `powershell -ExecutionPolicy Bypass -File tools/export_beta.ps1`. The default output is ignored `work/beta-windows`; `-ZipPath` packages a chosen delivery path. The export includes engine, third-party and font notices, plus the audio permission record. The repository is public at the user's request.
+
+## Presentation update in beta 0.10.0
+
+The diner has red vinyl booths, cream tables, a lunch counter with stools, blinds and warm fluorescent lights. The title uses the approved F artwork. Share Tech Mono is the matching editable font across menus, notes and world labels.
+
+Town bodies have generic E inspection prompts. The first inspection prompts a shocked reaction; later inspections describe small clues. No identity text is attached to a body. The hazard cross is made from uneven tapered strokes, smears and drips.
+
+Inside the wardrobe, WASD shifts position within its bounds, mouse look remains available and held right-click opens a narrow peeking gap. A countdown shows the remaining time until daylight. E still leaves hiding and is fatal before the timer ends. Pausing or reading notes freezes the countdown.
+
+Engine repair takes five seconds, burial eight and coffee preparation four. Each action displays its progress, current step and remaining time, and keeps movement locked until completion. Journal strike-through marks completed tasks; taking the footpath labels the unchosen repair as abandoned.
+
+The newspaper is typeset into columns with game-rendered photographs and a matching physical prop. Closing the final document begins a 33-second first-person closing scene with a clock glance, a distant sound, reaction, fade and credits before results. Both endings remain pause-safe. The test suite covers these behaviors; native previews are in `docs/v0.10.0-beta.1-*.png`.
 
 ## Development
 
