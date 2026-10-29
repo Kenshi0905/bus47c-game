@@ -6,6 +6,7 @@ var originals: Array[Dictionary]=[]
 var sound: AudioStreamPlayer3D
 var elapsed := 0.0
 var active := false
+var trail_age := 0.0
 
 func setup(figure: Node3D) -> void:
 	if is_instance_valid(root):return
@@ -38,6 +39,9 @@ func begin(figure: Node3D) -> void:
 	elapsed=0
 	root.global_transform=figure.global_transform
 	root.show()
+	sound.position=Vector3(0,1.2,0)
+	sound.stream=preload("res://assets/audio/watcher_veil.wav")
+	sound.volume_db=-8
 	sound.play()
 	for child in figure.find_children("*","MeshInstance3D",true,false):
 		var mesh: MeshInstance3D=child
@@ -48,6 +52,29 @@ func begin(figure: Node3D) -> void:
 		material.set_shader_parameter("tint",source.albedo_color if source is StandardMaterial3D else Color("83938c"))
 		mesh.material_override=material
 
+func begin_trail(figure: Node3D) -> void:
+	setup(figure)
+	clear()
+	active=true
+	trail_age=0
+	root.global_transform=Transform3D.IDENTITY
+	root.show()
+	sound.global_position=figure.global_position+Vector3(0,1.2,0)
+	sound.stream=preload("res://assets/audio/beta_tree_zip.wav")
+	sound.volume_db=-5
+	sound.play()
+
+func update_trail(delta: float, origin: Vector3, figure: Node3D, camera: Camera3D, fading: bool=false) -> void:
+	if fading:trail_age+=delta
+	var fade := clampf(1-trail_age/.65,0,1)
+	for i in range(pieces.size()):
+		# Keep the leading figure clear; smoke trails behind instead of covering it.
+		var t := float(i)/float(pieces.size()-1)*.76
+		pieces[i].global_position=origin.lerp(figure.global_position,t)+Vector3(sin(i*2.4)*.15,.3+float(i%8)*.23,cos(i*2.4)*.15)
+		pieces[i].look_at(camera.global_position)
+		pieces[i].material_override.set_shader_parameter("opacity",fade*(.13 if i==0 else .055))
+	if fade<=0:root.hide()
+
 func restore_materials() -> void:
 	for entry in originals:
 		if is_instance_valid(entry.mesh):entry.mesh.material_override=entry.material
@@ -57,6 +84,7 @@ func clear() -> void:
 	restore_materials()
 	active=false
 	elapsed=0
+	trail_age=0
 	if is_instance_valid(root):root.hide()
 	if is_instance_valid(sound):sound.stop()
 

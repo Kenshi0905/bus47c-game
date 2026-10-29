@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0-beta.1
+- Slower journey legs and repaired final ride. Corpses appear on the side the player is viewing, fade through distant fog and stay fixed once revealed. Five distinct blood-streaked warnings replace the repeated pairs.
+- The zoomed watcher turns, dashes to a real forest tree, peeks, retreats and leaves a remnant. Departing passengers hold their stare beside the front door.
+- Fruit has a subtle glow. After eating, choose the footpath or collect five distinct machine parts and fit them at the bus engine. Inventory and completed repairs survive checkpoint reloads.
+- A town boundary ends the forest pursuit immediately, including detours toward the mart. Footpath pursuit steps grow closer and louder. Footprints and the Forestry Way marker improve navigation.
+- The mirror stays empty until E. Completed or obsolete journal entries are crossed out. Separated the vase and wall trim surfaces and reduced material shimmer.
+- Distinct diner, mart, takeaway and new coffee shop use the supplied inspirations. All four have accessible interiors and optional notes.
+- Original path atmosphere, tension swells, death sting, jumpscare and positional tree rush use restrained levels, fades, quiet intervals and ambience ducking. The linked commercial-preview audio is not copied.
+- Reproducible Windows x86_64 beta export with controls, source information and third-party notices. More lore and final polish remain in development.
+
 ## 0.7.0
 - Weathered roadside warnings on both sides of the route, an overhead message and a rebuilt woods sign. Raised blood streaks and animated falling drops remain editable procedural geometry.
 - Passengers depart at varied later stops, hold a stare toward the player, walk through the door and lose their facial features inside the shelter. Seats become available again. The saved journey seed preserves the schedule across retries.

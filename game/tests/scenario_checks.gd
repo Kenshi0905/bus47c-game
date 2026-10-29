@@ -61,7 +61,9 @@ static func run(g) -> bool:
 		var target: Vector3=spot.parent.to_global(spot.local)
 		aim(g,id,Vector3(target.x,.15,target.z+1.7))
 		g.request_interaction(id)
-	assert(a.phase=="return" and a.hunger==100 and not g.subtitle_frame.visible)
+	assert(a.phase=="fork" and a.hunger==100 and not g.subtitle_frame.visible)
+	assert(not a.repairs.repaired and a.repairs.taken.is_empty())
+	a.set_phase("return", "Return to the path.")
 	var goal: Vector3=Route.FOREST_FORK
 	a.place_player(a.point(30,-700)+Vector3(0,.15,0),goal+Vector3.UP)
 	a.pursuit_grace=0
@@ -107,7 +109,7 @@ static func run(g) -> bool:
 	assert(not g.paused and not g.menu.visible and not g.transition_shade.visible)
 	a.update(.01)
 	a.update(1.9)
-	assert(a.phase=="forage" and a.fruit_taken.is_empty(),"Forest failure restores a safe checkpoint")
+	assert(a.phase=="fork" and a.fruit_taken.size()==3,"Forest failure preserves the completed food checkpoint")
 	# Walk the entire continuous trail; no sign interaction or endpoint teleport.
 	a.restore({"phase":"fork","branch":"walk"})
 	for i in range(1,Route.WALK_PATH.size()):
@@ -138,7 +140,8 @@ static func run(g) -> bool:
 	attack.pressed=true
 	g._unhandled_input(attack)
 	assert(a.phase=="mirror")
-	for i in range(3):
+	assert(not a.mirror_face.visible, "Mirror stays empty until E")
+	for i in range(4):
 		aim(g,"mirror",HOUSE+Vector3(-3.4,.15,-3))
 		g.request_interaction("mirror")
 		a.update(1.6)
@@ -157,7 +160,7 @@ static func run(g) -> bool:
 	assert(a.phase=="loop","Main menu must preserve the later story checkpoint")
 	# The bus branch completes the actual final leg before its town transition.
 	g.start_game(Story.Stage.DEER)
-	a.restore({"phase":"fork","branch":"bus"})
+	a.restore({"phase":"fork","branch":"bus","parts":[0,1,2,3,4],"repaired":true})
 	g.player.global_position=g.bus.to_global(Vector3(.3,.8,-3))
 	g.board_if_inside()
 	assert(g.player.get_parent()==g.bus)
@@ -167,7 +170,7 @@ static func run(g) -> bool:
 	a.update(.1)
 	assert(a.phase=="bus_ride")
 	a.update(10)
-	assert(a.phase=="bus_ride" and g.bus.position.z< -710 and g.bus.position.z>Route.TERMINUS_Z)
+	assert(a.phase=="bus_ride" and g.bus.position.z< -695 and g.bus.position.z>Route.TERMINUS_Z)
 	a.update(Route.FINAL_RIDE_SECONDS)
 	assert(a.phase=="arrival" and is_equal_approx(g.bus.position.z,Route.TERMINUS_Z) and g.door_goal==1)
 	g.set_door(true,true)

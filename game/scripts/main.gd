@@ -11,6 +11,7 @@ const SAVE := "user://checkpoint.json"
 const HorrorSigns=preload("res://scripts/horror_signs.gd")
 var signs: Node3D
 var trip_seed := 4707
+var audio_story: Node
 var story = Story.new()
 var aftermath: Node3D
 var world_environment: Environment
@@ -85,6 +86,9 @@ func _ready() -> void:
 	_build_world()
 	_build_ui()
 	_build_audio()
+	audio_story=preload("res://scripts/story_audio.gd").new()
+	add_child(audio_story)
+	audio_story.setup(self)
 	signs=HorrorSigns.new()
 	add_child(signs)
 	signs.setup(self)
@@ -544,7 +548,7 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   v0.7.0", 16, Color("9d9f94"))
+	var version := label("BUS 47C   v0.8.0-beta.1", 16, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(1070, 666)
@@ -646,7 +650,7 @@ func show_information(page: String, is_pause: bool) -> void:
 	menu_spacer(12)
 	var copy := "WASD   Move\nMOUSE   Look\nRIGHT MOUSE   Hold to zoom\nE   Interact and sit\nLEFT MOUSE   Defend with knife\nSPACE   Stand up\nTAB   Shift notes\nSHIFT   Walk faster\nESC   Pause or back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
 	if page == "credits":
-		copy = "BUS 47C\nStory and direction: Ashmit Avash\n\nA game built in Godot\nMenu design: Canva and original vectors\nFont: Bebas Neue, SIL OFL\n\nFootstep references\nEffecism and Kerma T.C.\nEdited for this private prototype.\n\nPlayable story prototype."
+		copy = "BUS 47C\nStory and direction: Ashmit Avash\n\nA game built in Godot\nMenu design: Canva and original vectors\nFont: Bebas Neue, SIL OFL\n\nFootstep references\nEffecism and Kerma T.C.\nEdited for this private beta.\n\nOriginal beta sound design\nMore lore is in development."
 	var body := label(copy, 18, Color("bebfb5"))
 	menu_box.add_child(body)
 	menu_spacer(18)
@@ -666,11 +670,12 @@ func resume_game() -> void:
 	menu_shade.hide()
 	player.camera.make_current()
 	hud.show()
-	player.enabled = not modal and not (aftermath.active and aftermath.phase in ["closet","burying","transit","jumpscare"])
+	player.enabled = not modal and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare"])
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if modal else Input.MOUSE_MODE_CAPTURED
 
 func start_game(checkpoint: int, saved_seed: int = -1) -> void:
 	trip_seed=saved_seed if saved_seed>=0 else (4707 if "--smoke" in OS.get_cmdline_user_args() or "--capture" in OS.get_cmdline_user_args() else randi()%2147483647)
+	audio_story.reset()
 	aftermath.reset()
 	story.restore(checkpoint)
 	player.reset_zoom()
@@ -775,14 +780,26 @@ func show_document(kind: String) -> void:
 	if Aftermath.District.DOCUMENTS.has(kind):title.text=Aftermath.District.DOCUMENTS[kind][0]
 	title.add_theme_font_override("font",MENU_FONT)
 	modal_box.add_child(title)
-	modal_box.add_child(paper_label("MORNING EDITION" if kind=="newspaper" else "LOOMESVILLE FORESTRY DIVISION",12))
+	modal_box.add_child(paper_label("COUNTER NOTE" if kind.begins_with("shop_") else ("MORNING EDITION" if kind=="newspaper" else "LOOMESVILLE FORESTRY DIVISION"),12))
 	modal_box.add_child(HSeparator.new())
 	var copy := "47C is the last bus to Loomesville.\n\nThe driver will not answer you.\nBoard anyway.\n\nIf you hear someone behind you in the forest, keep walking.\n\nDo not look back."
 	if kind=="journal": copy = "End of shift. Get home.\n\n" + objective.text + "\n\nRoute\nFirewatch, Mill Road, Old Quarry\nPine Crossing, St Bride's, Loomesville\n\nEmpty seats are available.\nE to sit. Space to stand."
 	if kind=="ticket":copy="SINGLE FARE\n\nFROM: FIREWATCH SHELTER\nTO:   LOOMESVILLE\n\nSERVICE: 47C\nTIME:    02:36\n\nOne passenger.\n\nThe paper smells of smoke."
 	if kind=="newspaper":copy="NIGHT BUS DESTROYED BY FIRE\n\nNo survivors were recovered from service 47C. Investigators suspect arson.\n\nPolice seek the state firewatcher assigned to Loomesville Forest.\n\nBelow the headline is your photograph.\n\nThe clock above the counter reads 02:36."
 	if Aftermath.District.DOCUMENTS.has(kind):copy=Aftermath.District.DOCUMENTS[kind][1]
-	modal_box.add_child(paper_label(copy,21))
+	if kind=="journal":
+		var journal := RichTextLabel.new()
+		journal.bbcode_enabled=true
+		journal.fit_content=true
+		journal.scroll_active=false
+		journal.custom_minimum_size.x=520
+		journal.add_theme_font_size_override("normal_font_size",18)
+		var typewriter := SystemFont.new()
+		typewriter.font_names=PackedStringArray(["Courier New","Liberation Mono","monospace"])
+		journal.add_theme_font_override("normal_font",typewriter)
+		journal.text=preload("res://scripts/shift_journal.gd").content(self)
+		modal_box.add_child(journal)
+	else:modal_box.add_child(paper_label(copy,21))
 	var close := button("FOLD NOTE  [E]" if kind=="note" else "CLOSE NOTES  [TAB]",close_document)
 	close.add_theme_color_override("font_color",Color("30382f"))
 	close.add_theme_font_size_override("font_size",20)
@@ -803,7 +820,7 @@ func close_document() -> void:
 	modal_kind = ""
 	modal_panel.hide()
 	paper_surface.hide()
-	player.enabled = not paused and not (aftermath.active and aftermath.phase in ["closet","burying","transit","jumpscare"])
+	player.enabled = not paused and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare"])
 	hud.visible = not paused
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if was_note and story.interact("note"): apply_stage()
@@ -921,6 +938,7 @@ func _notification(what: int) -> void:
 		show_menu(true)
 
 func _process(delta: float) -> void:
+	audio_story.update(delta)
 	if not running:update_title_scene(delta)
 	if not running or paused or modal:return
 	signs.update(delta)
@@ -974,6 +992,7 @@ func update_target() -> void:
 
 
 func quit_cleanly() -> void:
+	audio_story.reset()
 	for sound in [ambience, engine, drone, sfx, footsteps, menu_ambience]:
 		sound.stream_paused = false
 		sound.stop()
@@ -982,7 +1001,7 @@ func quit_cleanly() -> void:
 	get_tree().quit()
 
 func smoke_test() -> void:
-	get_tree().create_timer(300).timeout.connect(func():get_tree().quit(2))
+	get_tree().create_timer(420).timeout.connect(func():get_tree().quit(2))
 	# Exercise real menu actions and Escape without starting or changing a save.
 	assert(menu_camera.current and not player.enabled)
 	assert(get_viewport().gui_get_focus_owner() is Button)
@@ -1107,7 +1126,7 @@ func smoke_test() -> void:
 	assert(not modal)
 	tab.pressed=false
 	Input.parse_input_event(tab.duplicate())
-	assert(story.tick(26))
+	assert(story.tick(Story.DURATIONS[Story.Stage.RIDING]))
 	apply_stage(false)
 	assert(not passenger.visible,"Arrivals must not pop into a watched seat")
 	set_door(true,true)
@@ -1158,7 +1177,7 @@ func smoke_test() -> void:
 	story.elapsed=8
 	_physics_process(.2)
 	assert(absf(steering.rotation.y)>.001,"Steering wheel must turn while driving")
-	assert(story.tick(30.1))
+	assert(story.tick(Story.DURATIONS[Story.Stage.NEXT_RIDE]+.1))
 	apply_stage(false)
 	assert(door_goal==1)
 	set_door(true,true)
@@ -1176,7 +1195,7 @@ func smoke_test() -> void:
 	await get_tree().create_timer(1.6).timeout
 	assert(story.stage==Story.Stage.THIRD_RIDE and door_amount<.01)
 	for stage in [Story.Stage.THIRD_STOP,Story.Stage.FOURTH_STOP]:
-		assert(story.tick(28.1))
+		assert(story.tick(Story.DURATIONS[story.stage]+.1))
 		apply_stage(false)
 		assert(story.stage==stage and door_goal==1)
 		set_door(true,true)
@@ -1189,14 +1208,14 @@ func smoke_test() -> void:
 		set_door(false,true)
 		process_departure()
 	assert(story.stage==Story.Stage.FINAL_RIDE)
-	story.elapsed=26
+	story.elapsed=Story.DURATIONS[Story.Stage.FINAL_RIDE]-6
 	update_deer()
 	assert(not deer.visible)
-	story.elapsed=28
+	story.elapsed=Story.DURATIONS[Story.Stage.FINAL_RIDE]-4
 	_physics_process(.016)
 	var crossing_start := deer.position
 	assert(deer.visible and bus.position.z> -680 and bus.position.z< -550)
-	story.elapsed=31
+	story.elapsed=Story.DURATIONS[Story.Stage.FINAL_RIDE]-1
 	_physics_process(.016)
 	assert(deer.position.distance_to(crossing_start)>3 and deer.rotation.z==0)
 
@@ -1209,6 +1228,7 @@ func smoke_test() -> void:
 	await test_ride_features()
 	assert(await preload("res://tests/scenario_checks.gd").run(self))
 	assert(await preload("res://tests/district_checks.gd").run(self))
+	assert(await preload("res://tests/beta_checks.gd").run(self))
 	print("PASS: six stops, moving deer, slow zoom-only watcher, seats, doors, forest failures/recovery, both routes and both endings")
 	quit_cleanly()
 
@@ -1222,79 +1242,15 @@ func capture_frame(name_text: String) -> void:
 		paused=was_paused
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.7.0-"+name_text+".png")
+	var folder := OS.get_environment("BUS47C_CAPTURE_DIR")
+	if folder.is_empty():folder="res://../docs" if OS.has_feature("editor") else "user://captures"
+	folder=ProjectSettings.globalize_path(folder).simplify_path()
+	DirAccess.make_dir_recursive_absolute(folder)
+	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.8.0-beta.1-"+name_text+".png"))
 
 func capture_preview() -> void:
-	get_tree().create_timer(60).timeout.connect(func():get_tree().quit(2))
-	await get_tree().create_timer(.6).timeout
-	start_game(Story.Stage.STOP)
-	player.position=Vector3(5,.15,2.5)
-	player.camera.look_at(Vector3(5,2.25,-.82))
-	paused=true
-	await capture_frame("shelter-sign")
-	start_game(Story.Stage.PASSENGER)
-	story.stage=Story.Stage.NEXT_RIDE
-	story.elapsed=12
-	apply_stage(false)
-	set_door(false,true)
-	_physics_process(.016)
-	player.camera.look_at(bus.to_global(Vector3(22,1.7,-15)))
-	watcher_director.reset(watcher)
-	update_watcher(2)
-	assert(watcher.visible)
-	player.camera.look_at(watcher.global_position+Vector3(0,1.4,0))
-	player.camera.fov=43
-	Input.action_press("zoom")
-	update_watcher(.56)
-	update_watcher(3.1)
-	update_watcher(.35)
-	paused=true
-	await capture_frame("watcher-dissolve")
-	update_watcher(.6)
-	assert(not watcher.visible and watcher_director.departure.root.visible)
-	await capture_frame("watcher-remnant")
-	start_game(Story.Stage.DEER)
-	request_interaction("deer")
-	set_door(true,true)
-	paused=true
-	await capture_frame("before-exit")
-	aftermath.place_player(Route.point(4,.15,-683),Vector3(28,1,-688))
-	aftermath.update(.01)
-	assert(aftermath.phase=="hunger_cue" and aftermath.hunger_cues_played==1)
-	await capture_frame("stomach-cue")
-	aftermath.update(1.9)
-	await capture_frame("food-objective")
-	aftermath.place_player(Vector3(22,.15,-700),Vector3(16,1.7,-706))
-	aftermath.set_phase("return","")
-	aftermath.pursuit_grace=0
-	aftermath.update(.4)
-	player.global_position.x+=.3
-	aftermath.update(.01)
-	aftermath.update(.72)
-	show_menu(true)
-	await capture_frame("capture-paused")
-	resume_game()
-	aftermath.update(.3)
-	assert(aftermath.phase=="dead" and not transition_shade.visible)
-	await capture_frame("caught-menu")
-	var shot := get_viewport().get_texture().get_image()
-	var lit := 0
-	for y in range(55,350,4):
-		for x in range(60,550,4):
-			var pixel := shot.get_pixel(x,y)
-			if pixel.r+pixel.g+pixel.b>1.2:lit+=1
-	assert(lit>100,"Rendered retry menu must be visible, not covered by a black fade")
-	var retry: Button=get_viewport().gui_get_focus_owner()
-	assert(retry.text=="RETRY CHECKPOINT")
-	retry.pressed.emit()
-	assert(not menu.visible and not transition_shade.visible)
-	aftermath.update(.01)
-	aftermath.update(1.9)
-	paused=true
-	await capture_frame("retry")
-	await preload("res://tests/district_checks.gd").capture(self)
-	print("Rendered v0.7.0 signage, dissolve, hunger timing and visible capture menu; retry button works")
-	quit_cleanly()
+	get_tree().create_timer(90).timeout.connect(func():get_tree().quit(2))
+	await preload("res://tests/beta_capture.gd").run(self)
 
 func glass(parent: Node3D, pos: Vector3, size: Vector3) -> MeshInstance3D:
 	var g := block(parent,pos,size,"46636d",true)
@@ -1605,7 +1561,7 @@ func return_to_title() -> void:
 func test_ride_features() -> void:
 	start_game(Story.Stage.PASSENGER)
 	story.stage=Story.Stage.NEXT_RIDE
-	story.elapsed=12
+	story.elapsed=Story.DURATIONS[Story.Stage.NEXT_RIDE]*.4
 	apply_stage(false)
 	set_door(false,true)
 	_physics_process(.016)
@@ -1651,19 +1607,7 @@ func test_ride_features() -> void:
 	assert(absf(watcher.rotation.y-initial_yaw)>.05,"Zoom encounter must turn the model")
 	update_watcher(1.4)
 	assert(watcher.visible,"The slow turn and stare must remain visible")
-	update_watcher(1.5)
-	assert(watcher.visible and watcher_director.departure.active,"The figure dissolves rather than popping out")
-	update_watcher(.4)
-	assert(watcher.visible and watcher_director.departure.root.visible)
-	update_watcher(.4)
-	assert(not watcher.visible and watcher_director.departure.root.visible,"Smoke lingers after the body vanishes")
-	var effect_time: float=watcher_director.departure.elapsed
-	show_menu(true)
-	_physics_process(5)
-	assert(watcher_director.departure.elapsed==effect_time)
-	resume_game()
-	update_watcher(2)
-	assert(not watcher_director.departure.active and not watcher_director.departure.root.visible)
+	await preload("res://tests/roadside_checks.gd").finish_watcher_encounter(self)
 	Input.action_press("zoom")
 	await get_tree().create_timer(.2).timeout
 	assert(player.camera.fov<player.normal_fov-10)
@@ -1724,7 +1668,8 @@ func build_road() -> void:
 func update_deer() -> void:
 	if story.stage!=Story.Stage.FINAL_RIDE:return
 	var time: float=story.elapsed
-	deer.visible=time>=27.0
+	var end: float=Story.DURATIONS[Story.Stage.FINAL_RIDE]
+	deer.visible=time>=end-5
 	if not deer.visible:return
 	deer.rotation=Vector3(0,-PI/2,0)
-	deer.position=Route.point(lerpf(-10,.3,smoothstep(27,31.4,time)),.07+absf(sin(time*14))*.06,-685)
+	deer.position=Route.point(lerpf(-10,.3,smoothstep(end-5,end-.6,time)),.07+absf(sin(time*14))*.06,-685)

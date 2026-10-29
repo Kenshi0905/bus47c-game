@@ -8,6 +8,7 @@ const GRASS_PER_SIDE := 210
 var tree_count := 0
 var understory_count := 0
 var batches := 0
+var trunk_positions: Array[Vector3]=[]
 
 func _ready() -> void:
 	name = "DenseForest"
@@ -26,6 +27,7 @@ func _ready() -> void:
 					var x: float = (-6.9 - spread) if side < 0 else (5.8 + spread)
 					var z := center_z + rng.randf_range(-25, 25)
 					if in_clearing(x, z): continue
+					if kind==0:trunk_positions.append(Route.point(x,0,z))
 					var mesh_kind := kind + 1 if kind > 0 else (1 if rng.randf() < .15 else 0)
 					var height := rng.randf_range(.75, 1.6) if kind == 0 else rng.randf_range(.65, 1.5)
 					var width := rng.randf_range(.7, 1.2)
@@ -49,7 +51,7 @@ func in_clearing(x: float, z: float) -> bool:
 		path.append_array(Route.WALK_PATH)
 		for i in range(path.size()-1):
 			if Geometry2D.get_closest_point_to_segment(at,Vector2(path[i].x,path[i].z),Vector2(path[i+1].x,path[i+1].z)).distance_to(at)<3.8:return true
-		for fruit in Route.FRUIT_SITES:
+		for fruit in Route.FRUIT_SITES+Route.REPAIR_SITES:
 			if world.distance_to(fruit)<2.1:return true
 	# Preserve the shelter, boarding approach, stop signs and watcher sightlines.
 	if x > 2.5 and x < 12 and z > -16 and z < 12: return true

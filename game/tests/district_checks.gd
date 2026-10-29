@@ -28,6 +28,9 @@ static func run(g) -> bool:
 	var stare: Vector3=actor.node.global_position
 	p.update(1.7,g.player.camera,g.player.position,true)
 	assert(actor.state=="exit_stare" and actor.node.global_position.is_equal_approx(stare),"Passenger must hold the stare before leaving")
+	var toward_player: Vector3=g.player.camera.global_position-actor.node.global_position
+	toward_player.y=0
+	assert((-actor.node.global_basis.z).dot(toward_player.normalized())>.95,"Doorway stare faces the player")
 	for i in range(2000):
 		p.update(.025,g.player.camera,g.player.position,true)
 		if actor.state=="faceless":break
@@ -40,9 +43,7 @@ static func run(g) -> bool:
 			skin+=1
 	assert(skin>0 and not actor.corpse.visible)
 	var shelter: Vector3=actor.node.global_position
-	g.bus.position.z-=25
-	g.align_bus()
-	p.update(.1,g.player.camera,g.player.position,false)
+	for side in [-1,1]:preload("res://tests/roadside_checks.gd").check_body_side(g,0,side)
 	assert(actor.node.global_position.is_equal_approx(shelter),"Departed passenger must stay at the shelter when the bus moves")
 	assert(actor.corpse.visible and actor.corpse.get_node("BloodPool").visible)
 	for part in actor.corpse.find_children("*","MeshInstance3D",true,false):
@@ -67,12 +68,12 @@ static func run(g) -> bool:
 		assert(g.modal and g.modal_kind=="shop_"+id)
 		g.close_document()
 		await Scenarios.walk_to(g,shop.to_global(Vector3(0,.15,7)))
-	assert(g.signs.boards.size()>=24 and g.signs.drops.size()>100)
+	assert(g.signs.boards.size()==5 and g.signs.drops.size()==30)
 	var drop: Node3D=g.signs.drops[0].node
 	var at: Vector3=drop.position
 	g.signs.update(.5)
 	assert(not drop.position.is_equal_approx(at))
-	print("PASS: seeded departures, held stare, faceless shelter, stationary disembarked actors, matching headless body and blood pool, three physical shop entrances and counter notes, animated warning signs")
+	print("PASS: seeded departures, held stare, faceless shelter, stationary disembarked actors, matching headless body and blood pool, four physical shop entrances and counter notes, animated warning signs")
 	return true
 
 static func capture(g) -> void:
@@ -86,6 +87,7 @@ static func capture(g) -> void:
 		g.passengers.update(.025,g.player.camera,g.player.position,true)
 		if actor.state=="exit_stare":break
 	g.player.camera.look_at(actor.node.global_position+Vector3(0,1.5,0))
+	g.passengers.update(1.1,g.player.camera,g.player.position,true)
 	await g.capture_frame("passenger-stare")
 	for i in range(2000):
 		g.passengers.update(.025,g.player.camera,g.player.position,true)
@@ -93,9 +95,9 @@ static func capture(g) -> void:
 	g.aftermath.place_player(actor.node.global_position-actor.node.global_basis.z*2.8+Vector3(0,.15,0),actor.node.global_position+Vector3(0,1.4,0))
 	g.paused=true
 	await g.capture_frame("shelter-face")
-	g.bus.position.z-=30
-	g.align_bus()
-	g.passengers.update(.1,g.player.camera,Vector3.ZERO,false)
+	g.player.reparent(g.bus,false)
+	g.player.position=Vector3(.2,.8,-2.85)
+	preload("res://tests/roadside_checks.gd").check_body_side(g,0,-1)
 	g.aftermath.place_player(actor.corpse.global_position+Vector3(-2,.15,3.1),actor.corpse.global_position+Vector3(0,.2,-.4))
 	g.paused=true
 	await g.capture_frame("roadside-body")

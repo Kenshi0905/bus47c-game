@@ -1,7 +1,7 @@
 extends Node3D
 const Route=preload("res://scripts/route.gd")
-const ROAD_MARKERS := [-84.0,-185.0,-234.0,-322.0,-382.0,-463.0,-514.0,-603.0,-645.0,-756.0,-842.0]
-const WORDS := ["DON'T GO IN\nTHE WOODS","WAVE BACK\nTHEY REMEMBER","YOU ARE WITHIN\nITS REACH","YOU WERE HERE\nBEFORE","THE NEXT STOP\nKNOWS YOUR NAME","KEEP YOUR EYES\nON THE ROAD"]
+const ROAD_MARKERS := [-190.0,-350.0,-475.0]
+const WORDS := ["WAVING CHILDREN\nPLEASE WAVE BACK","IF YOU CAN READ THIS\nYOU'RE IN RANGE\nOF THE ANOMALY","YOU'VE BEEN HERE BEFORE\nWE MADE SURE YOU FORGOT"]
 var game
 var drops: Array[Dictionary]=[]
 var age := 0.0
@@ -11,14 +11,14 @@ func setup(g) -> void:
 	game=g
 	name="RoadsideWarnings"
 	for i in range(ROAD_MARKERS.size()):
-		for side in [-1,1]:
-			var z: float=ROAD_MARKERS[i]+(8 if side<0 else 0)
-			var board := add_board(self,Route.point(side*7.7,0,z),WORDS[(i+(1 if side<0 else 0))%WORDS.size()],3.7,1.65,atan2(-side*.85,.53),i+side+20)
-			board.rotation.z=sin(float(i*7+side))*.045
+		var side: int=-1 if i%2==0 else 1
+		var dimensions: Vector2=[Vector2(3.1,1.8),Vector2(3.6,2.3),Vector2(5.0,1.65)][i]
+		var board := add_board(self,Route.point(side*7.7,0,ROAD_MARKERS[i]),WORDS[i],dimensions.x,dimensions.y,atan2(-side*.85,.53),21+i)
+		board.rotation.z=sin(float(i*7+side))*.045
 	# An overhead message is visible through the windshield, leaving the road open.
 	var gantry := Node3D.new()
 	add_child(gantry)
-	gantry.transform=Route.frame(-574)
+	gantry.transform=Route.frame(-610)
 	for x in [-6,4.5]:game.block(gantry,Vector3(x,3.5,0),Vector3(.18,7,.18),"535c54",true)
 	game.block(gantry,Vector3(-.75,6.7,0),Vector3(10.7,.18,.18),"535c54")
 	var overhead := add_board(gantry,Vector3(-.75,3.75,0),"WE DIDN'T THINK YOU'D\nMAKE IT THIS FAR",7.5,1.5,0,94,false)
@@ -40,11 +40,13 @@ func add_board(parent: Node3D, at: Vector3, copy: String, width: float=3.7, heig
 	var material := ShaderMaterial.new()
 	material.shader=preload("res://assets/ui/bloody_sign.gdshader")
 	material.set_shader_parameter("seed",float(id))
-	material.set_shader_parameter("paint",Color("98682b") if id%4==1 else Color("804133"))
+	var paints := ["804133","b38b37","263f35","57332d"]
+	material.set_shader_parameter("paint",Color("70372b") if copy.begins_with("DON'T") else (Color("14201b") if id==94 else Color(paints[posmod(id,4)])))
 	face.material_override=material
 	root.add_child(face)
 	face.position=Vector3(0,2,.071)
-	var label: Label3D=game.text3(root,copy,Vector3(0,2,.083),54,Color("c6bfa2"))
+	var label: Label3D=game.text3(root,copy,Vector3(0,2,.083),54,Color("2b281b") if id==21 else Color("c6bfa2"))
+	if id==94:label.modulate=Color("d99847")
 	label.font=game.MENU_FONT
 	label.outline_size=0
 	var longest := 1

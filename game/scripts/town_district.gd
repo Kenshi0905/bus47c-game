@@ -1,14 +1,16 @@
 extends Node3D
-## Editable low-poly district. All three shop doors open into real interiors.
+## Editable low-poly district. Four distinct shops with real, walkable interiors.
 const AGED=preload("res://assets/ui/aged_surface.gdshader")
 var game
 var after
 var shops: Dictionary={}
 var materials: Dictionary={}
+var forestry_marker: Node3D
 const DOCUMENTS={
 	"shop_pizza":["LAST ORDER","MORROW'S PIZZA\n\nCollection for House 17.\nOne customer. Six place settings.\n\nThe order was paid at 02:36.\n\nPlease stop calling. We can hear the phone ringing inside your house."],
 	"shop_diner":["NIGHT SHIFT","NIGHT OWL DINER\n\nLeave the booth by the window empty.\n\nIf the last bus stops outside, turn off the coffee machine. Do not count the passengers.\n\nSomeone has crossed out every date on the rota."],
-	"shop_mart":["DELIVERY RECORD","47 MART\n\nMilk. Bread. Batteries.\n\nThe driver left the same boxes again. Everything inside expires yesterday.\n\nThere is a bus ticket tucked beneath the receipt. The destination has been rubbed away."]
+	"shop_mart":["DELIVERY RECORD","47 MART\n\nMilk. Bread. Batteries.\n\nThe driver left the same boxes again. Everything inside expires yesterday.\n\nThere is a bus ticket tucked beneath the receipt. The destination has been rubbed away."],
+	"shop_coffee_shop":["BEFORE OPENING","STILL HOUR COFFEE\n\nOne cup left beside the machine.\nCold before we opened.\n\nPlease leave the side light on for the firewatcher.\n\nThe handwriting ends here. There is a wet ring over the date."]
 }
 
 func setup(g, a, home: Node3D) -> void:
@@ -16,12 +18,14 @@ func setup(g, a, home: Node3D) -> void:
 	after=a
 	name="LoomesvilleDistrict"
 	street()
-	shop("pizza",Vector3(101,0,-742),PI/2,"MORROW'S PIZZA","8e3028")
-	shop("diner",Vector3(139,0,-742),-PI/2,"NIGHT OWL DINER","7d4c32")
-	shop("mart",Vector3(139,0,-714),-PI/2,"47 MART","41645a")
+	shop("pizza",Vector3(101,0,-742),PI/2,"MORROW'S TAKEAWAY","314f43")
+	shop("diner",Vector3(139,0,-742),-PI/2,"NIGHT OWL DINER","8e7150")
+	shop("mart",Vector3(139,0,-714),-PI/2,"47 MART","4b6557")
+	shop("coffee_shop",Vector3(113,0,-699),PI,"STILL HOUR COFFEE","797363")
 	for item in [[Vector3(97,0,-702),0],[Vector3(83,0,-702),0],[Vector3(155,0,-702),0],[Vector3(101,0,-766),PI/2],[Vector3(139,0,-766),-PI/2],[Vector3(151,0,-788),0],[Vector3(88,0,-789),0]]:
 		terrace(item[0],item[1])
 	home_details(home)
+	build_forestry_marker()
 
 func aged(mesh: MeshInstance3D, color: String, kind: int) -> MeshInstance3D:
 	var key := color+str(kind)
@@ -105,10 +109,12 @@ func shop(id: String, at: Vector3, yaw: float, title: String, color: String) -> 
 	root.position=at
 	root.rotation.y=yaw
 	shops[id]=root
-	box(root,Vector3(0,.025,0),Vector3(12,.05,11),"aba28b",true,3)
+	box(root,Vector3(0,.025,0),Vector3(12,.05,11),"827766" if id=="coffee_shop" else "aba28b",true,9 if id=="coffee_shop" else (8 if id=="mart" else 3))
 	box(root,Vector3(0,3.25,0),Vector3(12,.2,11),"888a78",true,6)
-	box(root,Vector3(0,1.6,-5.5),Vector3(12,3.2,.18),color,true,1)
-	for x in [-6,6]:box(root,Vector3(x,1.6,0),Vector3(.18,3.2,11),color,true,1)
+	var inside_color: String={"pizza":"94784c","diner":"b0a17d","mart":"727b69","coffee_shop":"a29b80"}[id]
+	var wall_kind: int=10 if id=="pizza" else 0
+	box(root,Vector3(0,1.6,-5.5),Vector3(12,3.2,.18),inside_color,true,wall_kind)
+	for x in [-6,6]:box(root,Vector3(x,1.6,0),Vector3(.18,3.2,11),inside_color,true,wall_kind)
 	# Wide centre entrance. Glass wings and an open hinged door frame it.
 	for x in [-3.55,3.55]:
 		box(root,Vector3(x,.4,5.5),Vector3(4.9,.8,.18),color,true,1)
@@ -116,8 +122,9 @@ func shop(id: String, at: Vector3, yaw: float, title: String, color: String) -> 
 		for dx in [-2.4,0,2.4]:box(root,Vector3(x+dx,1.85,5.53),Vector3(.08,2.3,.08),"a3a38e",true)
 	box(root,Vector3(0,3.12,5.5),Vector3(12,.2,.2),"a3a38e")
 	box(root,Vector3(0,3.7,5.55),Vector3(12.4,1,.3),color)
-	lettering(root,title,Vector3(0,3.7,5.72),.019)
-	for y in [3.26,4.12]:game.block(root,Vector3(0,y,5.75),Vector3(12.2,.055,.05),"d2b378",false,true)
+	var fascia: Label3D=lettering(root,title,Vector3(0,3.7,5.72),.016 if id=="pizza" or id=="coffee_shop" else .019)
+	if id=="diner":fascia.modulate=Color("e0a050")
+	for y in [3.26,4.12]:game.block(root,Vector3(0,y,5.75),Vector3(12.2,.055,.05),"c58d55" if id=="diner" else "d2b378",false,id!="coffee_shop")
 	game.light(root,Vector3(0,3.6,6),Color("d6b58a"),1.4,9)
 	var door := Node3D.new()
 	root.add_child(door)
@@ -128,8 +135,11 @@ func shop(id: String, at: Vector3, yaw: float, title: String, color: String) -> 
 	game.glass(door,Vector3(1,1.45,0),Vector3(1.9,2.75,.035))
 	box(door,Vector3(1.8,1.35,.08),Vector3(.035,.42,.035),"b5baa8")
 	for x in [-3.4,3.4]:
-		game.block(root,Vector3(x,3.08,0),Vector3(2,.045,.28),"c1c9b6",false,true)
-		game.light(root,Vector3(x,2.8,0),Color("c0c5a1"),1.4,8)
+		if id=="coffee_shop" or id=="diner":
+			pendant(root,Vector3(x,2.78,.5),"cfa66a")
+		else:
+			game.block(root,Vector3(x,3.08,0),Vector3(2,.045,.28),"c1c9b6",false,true)
+			game.light(root,Vector3(x,2.8,0),Color("c0c5a1"),1.4,8)
 	# A low counter leaves the centre and side aisles unobstructed.
 	box(root,Vector3(0,.52,-3),Vector3(8,1.04,.8),"6e5c48",true,2)
 	box(root,Vector3(0,1.08,-3),Vector3(8.2,.12,1),"b1a98e",true)
@@ -139,7 +149,9 @@ func shop(id: String, at: Vector3, yaw: float, title: String, color: String) -> 
 	after.hotspot("shop_"+id,root,Vector3(0,1.17,-2.8),"Read the counter note",2.5)
 	if id=="pizza":pizza_room(root)
 	elif id=="diner":diner_room(root)
-	else:mart_room(root)
+	elif id=="mart":mart_room(root)
+	else:coffee_room(root)
+	shop_front(root,id)
 	# Interior hum is spatial, quiet outside the building.
 	var hum := AudioStreamPlayer3D.new()
 	root.add_child(hum)
@@ -158,6 +170,106 @@ func table(parent: Node3D, at: Vector3, booth: bool=false) -> void:
 		box(parent,at+Vector3(side*1.28,.8,0),Vector3(.13,.8,1.2 if booth else .55),"65372e",true)
 		cylinder(parent,at+Vector3(side*.45,.9,0),.1,.16,"bcb49b")
 	box(parent,at+Vector3(0,.9,.3),Vector3(.2,.2,.18),"898a75")
+
+func pendant(parent: Node3D, at: Vector3, color: String) -> void:
+	box(parent,at+Vector3(0,.22,0),Vector3(.035,.44,.035),"353d32")
+	cylinder(parent,at,.25,.11,"4c4a38")
+	game.block(parent,at-Vector3(0,.08,0),Vector3(.2,.16,.2),color,false,true)
+	game.light(parent,at-Vector3(0,.18,0),Color(color),1.65,7.8)
+
+func poster(parent: Node3D, at: Vector3, size: Vector2, copy: String, color: String="c7bda0", ink: String="343c31", angle: float=0.0) -> Node3D:
+	var root := Node3D.new()
+	parent.add_child(root)
+	root.position=at
+	root.rotation.z=angle
+	box(root,Vector3.ZERO,Vector3(size.x,size.y,.018),color,false,7)
+	var longest := 1
+	for line in copy.split("\n"):longest=maxi(longest,line.length())
+	lettering(root,copy,Vector3(0,0,.021),minf(size.y/(maxi(1,copy.count("\n")+1)*65.0),size.x/(longest*31.0)),ink)
+	return root
+
+func neon_open(root: Node3D, at: Vector3, warm: bool=false) -> void:
+	box(root,at,Vector3(1.0,.55,.06),"243c36")
+	for x in [-.48,.48]:game.block(root,at+Vector3(x,0,.045),Vector3(.025,.47,.025),"c36c4a" if warm else "d45a79",false,true)
+	for y in [-.24,.24]:game.block(root,at+Vector3(0,y,.045),Vector3(.97,.025,.025),"c36c4a" if warm else "d45a79",false,true)
+	lettering(root,"OPEN",at+Vector3(0,0,.065),.007,"f0b46f" if warm else "c78fb3")
+	game.light(root,at+Vector3(0,0,.3),Color("cc8b51" if warm else "b4658c"),.5,3)
+
+func shop_front(root: Node3D, id: String) -> void:
+	# Paint wear, downpipes and small pasted notices distinguish the shopfronts.
+	for x in [-5.85,5.85]:box(root,Vector3(x,1.5,5.65),Vector3(.09,3,.09),"565c4f")
+	for i in range(11):
+		box(root,Vector3(-5.6+float(i)*1.05,.28+float(i%3)*.11,5.605),Vector3(.13+float(i%2)*.09,.08,.015),"5d6353")
+	if id=="diner":
+		box(root,Vector3(0,2.98,5.65),Vector3(12,.13,.08),"873d2e")
+		# Split the low stripes across the open entrance.
+		for x in [-3.55,3.55]:
+			for y in [.16,.55]:box(root,Vector3(x,y,5.66),Vector3(4.8,.13,.08),"873d2e")
+		var roof_sign := Node3D.new()
+		root.add_child(roof_sign)
+		roof_sign.position=Vector3(0,4.75,4.9)
+		for x in [-2.8,2.8]:box(roof_sign,Vector3(x,-.4,0),Vector3(.09,.8,.09),"3e473b")
+		box(roof_sign,Vector3.ZERO,Vector3(6.8,1.1,.15),"2e3c32")
+		lettering(roof_sign,"DINER",Vector3(-.9,0,.09),.028,"d58e40")
+		var eat_panel := poster(roof_sign,Vector3(2.4,0,.09),Vector2(1.8,.95),"EAT\nHERE","c7b184","232b22")
+		for child in eat_panel.get_children():
+			if child is Label3D:child.pixel_size=.0095
+		box(roof_sign,Vector3(3.5,0,0),Vector3(.65,.65,.13),"baa474").rotation.z=PI/4
+		game.light(roof_sign,Vector3(-1,0,.8),Color("c8904e"),1.0,5)
+		game.light(roof_sign,Vector3(2.4,0,.75),Color("cdb685"),1.4,3.5)
+		neon_open(root,Vector3(-4.8,2.0,5.65),true)
+		vending_machine(root,Vector3(-3.8,0,6.35))
+		table(root,Vector3(3.5,0,7.0))
+		poster(root,Vector3(4.9,1.8,5.57),Vector2(.75,.95),"HOT FOOD\nALL NIGHT","aa966e","493b2e",.04)
+	elif id=="pizza":
+		box(root,Vector3(0,3.1,6.05),Vector3(12.6,.12,1.3),"303e33")
+		lettering(root,"PIZZA   HOT MEALS   COLLECTION",Vector3(0,3.34,5.74),.007,"c2b693")
+		neon_open(root,Vector3(-3.5,2.1,5.59))
+		for x in [2.8,3.6,4.4]:
+			box(root,Vector3(x,.45,4.6),Vector3(.65,.13,.65),"744b3d",true)
+			box(root,Vector3(x,.87,4.86),Vector3(.65,.8,.09),"744b3d",true)
+		for i in range(4):poster(root,Vector3(2.8+float(i%2)*.95,1.5+float(i/2)*.78,5.57),Vector2(.7,.58),["HOT\nPIZZA","MEAL\nDEAL","TAKE\nAWAY","OPEN\nLATE"][i],"b7b49a","435044",float(i-2)*.04)
+		poster(root,Vector3(-1.45,1.4,5.61),Vector2(.5,.4),"KEEP\nCLEAR","bcc1b2","36483d")
+	elif id=="mart":
+		box(root,Vector3(0,3.02,6.03),Vector3(12.5,.14,1.2),"4c5a4b")
+		for i in range(10):
+			box(root,Vector3(-5.5+i*1.2,3.08,6.6),Vector3(.06,.11,.06),"8a9575")
+		poster(root,Vector3(-3.6,1.6,5.58),Vector2(1.35,1.6),"47 MART\nEVERYDAY\nLOW PRICES","b4ba98","4b5a40",-.025)
+		poster(root,Vector3(4.1,1.7,5.58),Vector2(1.2,1.5),"BREAD\nMILK\nBATTERIES","c6bda0","6b4632",.03)
+		for x in [-5.1,-4.5]:
+			box(root,Vector3(x,.25,6.3),Vector3(.5,.5,.6),"756b4f",true)
+			for y in [.15,.35]:box(root,Vector3(x,y,6.61),Vector3(.4,.05,.02),"504b37")
+		neon_open(root,Vector3(2.0,2.5,5.59),true)
+	else:
+		# The coffee stand is quieter and more cluttered, with a street serving ledge.
+		box(root,Vector3(-3.5,1.03,5.96),Vector3(4.8,.1,.9),"66624d",true,2)
+		for x in [-4.7,-2.5]:
+			cylinder(root,Vector3(x,.5,6.8),.07,1.0,"4d4c3e")
+			cylinder(root,Vector3(x,1.02,6.8),.3,.08,"89816a")
+		for i in range(7):
+			var sticker_color: String=["b7ad84","778976","ad9b74"][i%3]
+			poster(root,Vector3(-5.3+float(i)*.58,1.4+sin(i)*.2,5.58),Vector2(.42,.35),["47C","FRESH","COFFEE","LOCAL","02:36","TAKE\nAWAY","HELLO"][i],sticker_color,"3d4538",sin(i)*.08)
+		poster(root,Vector3(3.5,2.1,5.58),Vector2(1.15,1.5),"COFFEE\nTEA\nSOMETHING\nWARM","b9ab84","414737",-.03)
+		pendant(root,Vector3(-4.5,2.85,5.9),"d4b172")
+		plant(root,Vector3(3.4,.06,6.15),.8)
+		box(root,Vector3(5.1,2.0,5.68),Vector3(.85,.6,.25),"5e675b")
+		for y in [1.82,1.95,2.08,2.21]:box(root,Vector3(5.1,y,5.83),Vector3(.73,.035,.025),"2c392f")
+		for y in [.7,1.1,1.5]:box(root,Vector3(-5.8,y,5.78),Vector3(.27,.3,.13),"4b554b")
+
+func vending_machine(root: Node3D, at: Vector3) -> void:
+	box(root,at+Vector3(0,1.05,0),Vector3(1.05,2.1,.7),"6e342e",true)
+	box(root,at+Vector3(-.15,1.35,.37),Vector3(.53,1.15,.04),"b6a47b")
+	lettering(root,"COLA",at+Vector3(-.15,1.55,.405),.007,"62362a")
+	box(root,at+Vector3(.33,1.2,.39),Vector3(.22,.75,.04),"253b32")
+	for y in [.95,1.12,1.29,1.46]:game.block(root,at+Vector3(.33,y,.42),Vector3(.13,.07,.02),"aaa27b",false,true)
+	box(root,at+Vector3(0,.35,.37),Vector3(.68,.22,.05),"172b23")
+
+func plant(root: Node3D, at: Vector3, height: float=1.0) -> void:
+	cylinder(root,at+Vector3(0,.22,0),.26,.44,"7b6045")
+	cylinder(root,at+Vector3(0,.448,0),.225,.012,"3d392b")
+	for i in range(7):
+		var leaf := box(root,at+Vector3(sin(i)*.16,.48+height*.3+float(i%3)*.08,cos(i)*.16),Vector3(.08,height*.7,.1),"46513a")
+		leaf.rotation.z=sin(i)*.45
 
 func pizza_room(root: Node3D) -> void:
 	for z in [1.2,3.6]:table(root,Vector3(3.7,0,z))
@@ -183,6 +295,15 @@ func diner_room(root: Node3D) -> void:
 	lettering(root,"COFFEE ALL NIGHT\nTHE USUAL IS ALREADY ON",Vector3(1.7,2.3,-5.38),.005)
 	box(root,Vector3(-5.2,.8,3.8),Vector3(.7,1.6,.65),"745638",true)
 	game.block(root,Vector3(-5.2,1.2,4.15),Vector3(.5,.5,.04),"b58b52",false,true)
+	for x in [-5.88,5.88]:
+		box(root,Vector3(x,.65,0),Vector3(.06,1.2,10.7),"6b4636",false,10)
+		box(root,Vector3(x,1.28,0),Vector3(.1,.08,10.7),"a18d64")
+		for z in [-1.5,1.0,3.2]:
+			var frame := poster(root,Vector3(x,2.0,z),Vector2(.8,1.1),"NIGHT OWL\nHOT FOOD\nGOOD COFFEE","b6a273","6c4932",.02)
+			frame.rotation.y=PI/2 if x<0 else -PI/2
+	for x in [-4.5,3.8]:
+		box(root,Vector3(x,1.24,-3),Vector3(.23,.3,.2),"b8a47a")
+		box(root,Vector3(x,1.4,-3),Vector3(.27,.02,.24),"655b47")
 
 func mart_room(root: Node3D) -> void:
 	for x in [-3,3]:
@@ -200,6 +321,59 @@ func mart_room(root: Node3D) -> void:
 		game.glass(root,Vector3(x,1.4,-4.55),Vector3(1.95,2.35,.025))
 		box(root,Vector3(x+.8,1.3,-4.5),Vector3(.04,.55,.05),"b6bcad")
 	lettering(root,"COLD DRINKS     FRESH DAILY",Vector3(0,2.9,-5.1),.009)
+	# The abandoned sale banner hangs above head height, on unequal chains.
+	var banner := Node3D.new()
+	root.add_child(banner)
+	banner.name="FadedSaleBanner"
+	banner.position=Vector3(-1.6,2.55,2.0)
+	banner.rotation.z=-.11
+	box(banner,Vector3.ZERO,Vector3(3.6,.9,.04),"c7b99b",false,7)
+	for x in [-1.6,1.6]:
+		box(banner,Vector3(x,.63,0),Vector3(.018,.4,.018),"4b5947")
+	lettering(banner,"MIDNIGHT SALE\nDOOR BUSTERS",Vector3(-.6,0,.034),.0067,"354a3c")
+	var emblem := box(banner,Vector3(1.13,0,.03),Vector3(1.0,.65,.012),"985444")
+	emblem.rotation.z=.13
+	lettering(banner,"47\nMART",Vector3(1.13,0,.05),.006,"c2b59a")
+	for i in range(9):box(banner,Vector3(-1.6+i*.37,.37+sin(i)*.05,.035),Vector3(.14,.07,.01),"a49b80")
+	for x in [-5.7,5.7]:
+		for z in [1,3]:box(root,Vector3(x,.28,z),Vector3(.5,.56,.7),"8d7c59",true,7)
+	for x in [-3,3]:
+		for z in [-.1,1.2,2.5]:
+			box(root,Vector3(x,1.72,z),Vector3(1.0,.025,.2),"b0ac8b")
+			for dx in [-.4,0,.4]:
+				# Necked bottles break up the old repeated cylinder silhouettes.
+				cylinder(root,Vector3(x+dx,1.85,z+.2),.075,.2,"687b4d")
+				cylinder(root,Vector3(x+dx,1.99,z+.2),.035,.08,"8f9772")
+
+func coffee_room(root: Node3D) -> void:
+	# Small furniture clusters leave the straight entrance-to-note route clear.
+	for z in [.5,3.1]:table(root,Vector3(3.8,0,z))
+	box(root,Vector3(-4.8,1.05,.8),Vector3(1.8,.13,5.5),"7a654b",true,2)
+	for z in [-1.2,.8,2.8]:
+		cylinder(root,Vector3(-3.8,.47,z),.07,.94,"4c4f40")
+		cylinder(root,Vector3(-3.8,.97,z),.28,.1,"967957")
+	box(root,Vector3(-2.2,1.46,-3),Vector3(1.6,.65,.7),"747d6b",true)
+	box(root,Vector3(-2.2,1.47,-2.61),Vector3(1.38,.4,.06),"24392d")
+	for x in [-2.6,-1.8]:
+		cylinder(root,Vector3(x,1.73,-2.55),.05,.07,"aaad95").rotation.x=PI/2
+		box(root,Vector3(x,1.3,-2.57),Vector3(.035,.2,.035),"adb29e")
+		cylinder(root,Vector3(x,1.22,-2.49),.08,.13,"c6baa0")
+	box(root,Vector3(.8,1.32,-3),Vector3(2.1,.35,.7),"685840")
+	for x in [.1,.7,1.3]:
+		cylinder(root,Vector3(x,1.54,-3),.15,.08,"b4945d")
+	for i in range(5):
+		cylinder(root,Vector3(-3.2,1.19+i*.055,-3.0),.11,.09,"b5aa8e")
+	for y in [1.65,2.25]:
+		box(root,Vector3(-4.6,y,-5.1),Vector3(2.2,.09,.65),"6c5a42")
+		for x in [-5.3,-4.6,-3.9]:
+			box(root,Vector3(x,y+.25,-5.05),Vector3(.43,.45,.3),"9d8e6e",false,7)
+			poster(root,Vector3(x,y+.25,-4.885),Vector2(.28,.24),"BEANS","6f6f52","c4bb99")
+	poster(root,Vector3(.8,2.25,-5.36),Vector2(4.7,1.35),"STILL HOUR\nCOFFEE   TEA   PASTRIES\nTAKE A MOMENT","404d37","c3b38c")
+	for z in [-.6,1.1,2.8]:
+		var frame := poster(root,Vector3(-5.88,2.1,z),Vector2(.95,.7),"LOCAL ROAST\nSINCE 1974","b5a47e","46503b",sin(z)*.035)
+		frame.rotation.y=PI/2
+	plant(root,Vector3(5.25,.06,-4.7),1.1)
+	pendant(root,Vector3(-2.2,2.82,-3.8),"cdaa71")
 
 func terrace(at: Vector3, yaw: float) -> void:
 	var root := Node3D.new()
@@ -256,11 +430,9 @@ func home_details(home: Node3D) -> void:
 		for i in range(7):box(frame,Vector3(-.45+i*.15,-.1,.06),Vector3(.04,.2+sin(i)*.12,.01),"333f36")
 	box(home,Vector3(-4.5,.5,.1),Vector3(.6,.12,2.2),"514839",true,2)
 	box(home,Vector3(-4.8,.9,.1),Vector3(.1,.85,2.2),"514839")
-	cylinder(home,Vector3(4.65,.24,-.2),.3,.48,"745a42")
-	for i in range(7):
-		var leaf := box(home,Vector3(4.65+sin(i)*.22,.8+float(i%3)*.13,-.2+cos(i)*.22),Vector3(.09,.8,.12),"424c33")
-		leaf.rotation.z=sin(i)*.6
-	for x in [-5.12,5.12]:
+	# Lift the pot fully above the floor; keep wall skins separated by clear depth.
+	plant(home,Vector3(4.65,.065,-.2),.9)
+	for x in [-5.08,5.08]:
 		box(home,Vector3(x,.42,0),Vector3(.06,.78,10.2),"5c5440",false,2)
 		box(home,Vector3(x,2.95,0),Vector3(.14,.17,10.2),"a59a7b")
 	# Covered porch and side garden. No step collision at the doorway.
@@ -269,6 +441,20 @@ func home_details(home: Node3D) -> void:
 	for x in [-2.4,2.4]:box(home,Vector3(x,1.45,7),Vector3(.13,2.9,.13),"8d8870",true)
 	for x in [-6.8,6.8]:
 		for z in range(-8,7):box(home,Vector3(x,.55,z),Vector3(.08,1.1,.1),"67694f",true,2)
+
+func build_forestry_marker() -> void:
+	forestry_marker=Node3D.new()
+	forestry_marker.name="ForestryWayMarker"
+	add_child(forestry_marker)
+	forestry_marker.position=after.HOUSE+Vector3(-7.5,0,14.5)
+	forestry_marker.rotation.y=PI*.75
+	box(forestry_marker,Vector3(0,.85,0),Vector3(.08,1.7,.08),"625e46")
+	box(forestry_marker,Vector3(0,1.55,0),Vector3(1.4,.42,.08),"384b3b")
+	lettering(forestry_marker,"FORESTRY WAY",Vector3(0,1.55,.05),.0036,"c7bc8d")
+	var diamond: MeshInstance3D=game.block(forestry_marker,Vector3(0,1.97,0),Vector3(.14,.14,.07),"bcaa6f",false,true)
+	diamond.rotation.z=PI/4
+	game.light(forestry_marker,Vector3(0,1.6,.3),Color("b9aa79"),.45,3)
+	forestry_marker.hide()
 
 func attack_waypoint(from: Vector3, target: Vector3) -> Vector3:
 	var local_from: Vector3=from-after.HOUSE

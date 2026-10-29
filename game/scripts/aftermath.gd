@@ -6,6 +6,9 @@ const HOUSE := Vector3(120,0,-775)
 const SAFE_PHASES := ["forest","fork","town","burial","closet","dawn","loop"]
 const District=preload("res://scripts/town_district.gd")
 var district: Node3D
+var repairs: Node3D
+var town_entered := false
+var mirror_revealed := false
 var game
 var active := false
 var phase := ""
@@ -140,13 +143,18 @@ func build_forest() -> void:
 			round_fruit.radial_segments=8
 			round_fruit.rings=3
 			fruit.mesh=round_fruit
-			fruit.material_override=game.mat("a96c42")
+			fruit.material_override=game.mat("b08049",true)
 			berries.add_child(fruit)
 			fruit.position=Vector3((j%2)*.5-.25,.8+(j/2)*.2,.55)
+		game.light(berries,Vector3(0,1,.3),Color("bb985f"),.65,2.8)
 		fruit_nodes.append(berries)
 		hotspot("fruit"+str(i),root,Vector3(0,1,.4),"Eat fruit",2.6)
 	var ticket: MeshInstance3D=game.block(props,Vector3(5.35,.77,-.45),Vector3(.3,.018,.18),"d7bf7c")
 	hotspot("ticket",ticket,Vector3(0,.1,0),"Read the ticket")
+
+	repairs=preload("res://scripts/machine_parts.gd").new()
+	props.add_child(repairs)
+	repairs.setup(game,self)
 
 func build_town() -> void:
 	game.block(town,Vector3(120,.015,-754),Vector3(9,.03,76),"303432")
@@ -155,8 +163,13 @@ func build_town() -> void:
 		for z in [-735,-754,-774]:lantern(town,Vector3(x,0,z))
 	for z in range(-742,-770,-2):
 		for side in [-1,1]:
-			var footprint: MeshInstance3D=game.block(town,Vector3(120+side*.2,.045,z+side*.35),Vector3(.13,.015,.31),"542c27")
+			var footprint: MeshInstance3D=game.block(town,Vector3(120+side*.2,.045,z+side*.35),Vector3(.22,.017,.42),"97523c")
 			footprint.rotation.y=side*.12
+			var trace: StandardMaterial3D=game.mat("97523c").duplicate()
+			trace.emission_enabled=true
+			trace.emission=Color("452219")
+			trace.emission_energy_multiplier=.22
+			footprint.material_override=trace
 	var home := Node3D.new()
 	town.add_child(home)
 	home.position=HOUSE
@@ -268,7 +281,6 @@ func build_town() -> void:
 	slab(home,Vector3(0,0,-5),Vector3(2.2,0,-9),1.8,"4d4b37")
 	var escape := HOUSE+Vector3(-9,0,15)
 	lantern(town,escape)
-	game.text3(town,"FORESTRY WAY",escape+Vector3(0,1.8,0),30)
 	hotspot("escape",town,escape+Vector3(0,1,0),"Follow the trail into the woods",3)
 	district=District.new()
 	town.add_child(district)
@@ -283,6 +295,10 @@ func daylight(enabled: bool) -> void:
 
 func reset() -> void:
 	active=false
+	town_entered=false
+	mirror_revealed=false
+	mirror_face.hide()
+	repairs.reset()
 	phase=""
 	branch=""
 	checkpoint="forest"
@@ -321,7 +337,7 @@ func reset() -> void:
 
 func checkpoint_data() -> Dictionary:
 	if not active:return {}
-	return {"phase":checkpoint,"branch":branch}
+	return {"phase":checkpoint,"branch":branch,"parts":repairs.taken,"repaired":repairs.repaired}
 
 func save_at(value: String) -> void:
 	checkpoint=value
@@ -348,7 +364,9 @@ func restore(data: Dictionary) -> void:
 		fruit_taken.assign([0,1,2])
 		hunger=100
 		for fruit in fruit_nodes:fruit.hide()
-		set_phase("fork","The engine is running again. Choose the bus or the golden path.")
+		repairs.restore(data)
+		set_phase("fork",repairs.objective())
+		game.set_objective(repairs.objective(),true)
 		place_player(Route.FOREST_FORK+Vector3(-3,.15,3),Route.WALK_PATH[1]+Vector3.UP)
 		save_at("fork")
 	elif saved=="loop":place_loop()
@@ -386,6 +404,7 @@ func place_player(at: Vector3, look: Vector3) -> void:
 
 func set_phase(value: String, objective: String) -> void:
 	phase=value
+	if is_instance_valid(game.audio_story):game.audio_story.on_phase(value)
 	state_time=0
 	look_back_time=0
 	look_back_armed=false
@@ -412,11 +431,11 @@ func allowed() -> Array:
 			for i in range(3):
 				if i not in fruit_taken:ids.append("fruit"+str(i))
 			return ids
-		"fork":return ["shortcut","take_bus"]
-		"town":return ["knife","shop_pizza","shop_diner","shop_mart"]
+		"fork":return ["shortcut","take_bus"]+repairs.available()
+		"town":return ["knife","shop_pizza","shop_diner","shop_mart","shop_coffee_shop"]
 		"confront":return ["defend"] if knife else ["knife"]
 		"mirror":return ["mirror"] if mirror_wait<=0 else []
-		"escape":return ["escape","shop_pizza","shop_diner","shop_mart"]
+		"escape":return ["escape","shop_pizza","shop_diner","shop_mart","shop_coffee_shop"]
 		"burial":return ["grave","body"] if shovel else ["shovel","body"]
 		"closet_ready":return ["closet"]
 		"dawn":return ["newspaper"] if coffee else ["coffee"]
@@ -455,6 +474,16 @@ func interact(id: String) -> void:
 	if id not in allowed():return
 	if id.begins_with("shop_"):
 		game.show_document(id)
+	elif id.begins_with("part"):
+		if repairs.collect(id):
+			game.play_sound("rustle")
+			game.set_objective(repairs.objective(),true)
+			save_at("fork")
+	elif id=="repair_engine":
+		if repairs.taken.size()!=5:return
+		set_phase("repairing","Fit the parts. Tighten the housing.")
+		game.player.enabled=false
+		game.play_sound("knock")
 	elif id.begins_with("fruit"):
 		var index := int(id.trim_prefix("fruit"))
 		fruit_taken.append(index)
@@ -464,9 +493,14 @@ func interact(id: String) -> void:
 		if fruit_taken.size()==3:
 			hunger=100
 			pursuit_grace=5
-			set_phase("return","Return to the path.")
+			set_phase("fork",repairs.objective())
+			game.set_objective(repairs.objective(),true)
+			save_at("fork")
 	elif id=="shortcut":start_walking()
 	elif id=="take_bus":
+		if not repairs.repaired:
+			game.set_objective(repairs.objective(),true)
+			return
 		if not game.player_aboard():
 			game.set_objective("Walk through the doors to board.")
 			return
@@ -493,6 +527,13 @@ func interact(id: String) -> void:
 			game.say("It is still moving. Bury it before it gets up.",5,true)
 			save_at("burial")
 	elif id=="mirror":
+		if not mirror_revealed:
+			mirror_revealed=true
+			mirror_face.show()
+			mirror_wait=1.5
+			game.play_sound("mirror")
+			game.set_objective("My reflection. Look again.")
+			return
 		mirror_count+=1
 		mirror_wait=1.5
 		game.play_sound("mirror")
@@ -532,6 +573,17 @@ func interact(id: String) -> void:
 	elif id in ["newspaper","ticket"]:game.show_document(id)
 
 func update(delta: float) -> void:
+	# Entering the district is a boundary, not a single endpoint. A side detour
+	# toward the mart must end the forest encounter before any gaze check.
+	if not town_entered and phase in ["return","walk","fork","jumpscare"] and in_loomesville():
+		branch="walk"
+		place_town(true)
+	if town_entered:
+		pursuer.hide()
+		trail_audio.stop()
+		look_back_armed=false
+		look_back_time=0
+	district.forestry_marker.visible=phase=="escape"
 	if phase in ["dead","ending"]:return
 	state_time+=delta
 	mirror_wait=maxf(0,mirror_wait-delta)
@@ -559,12 +611,19 @@ func update(delta: float) -> void:
 		if game.player.global_position.distance_to(destination)<3.8:
 			pursuer.hide()
 			if phase=="return":
-				set_phase("fork","The engine is running again. Choose the bus or the golden path.")
-				game.engine.play()
+				set_phase("fork",repairs.objective())
 				save_at("fork")
 			else:place_town(true)
 	elif phase=="fork":
 		if on_walking_path():start_walking()
+	elif phase=="repairing":
+		if state_time>=5:
+			repairs.repaired=true
+			game.player.enabled=true
+			game.engine.play()
+			set_phase("fork",repairs.objective())
+			game.set_objective(repairs.objective(),true)
+			save_at("fork")
 	elif phase=="jumpscare":
 		update_jumpscare()
 	elif phase=="bus_depart":
@@ -674,6 +733,11 @@ func try_defend() -> bool:
 	return true
 
 func pursuit(delta: float, goal: Vector3) -> void:
+	if town_entered or in_loomesville():
+		pursuer.hide()
+		trail_audio.stop()
+		look_back_armed=false
+		return
 	pursuit_grace=maxf(0,pursuit_grace-delta)
 	var ahead: Vector3=goal-game.player.global_position
 	ahead.y=0
@@ -696,16 +760,21 @@ func pursuit(delta: float, goal: Vector3) -> void:
 			game.player.velocity=Vector3.ZERO
 			game.player.reset_zoom()
 			trail_audio.stop()
-			game.play_sound("ambush")
 			update_jumpscare()
 			return
-	pursuer.position=game.player.global_position-ahead*7
+	var distance := lerpf(5.5,2.15,clampf(state_time/35.0,0,1)) if phase=="walk" else 7.0
+	pursuer.position=game.player.global_position-ahead*distance+ahead.cross(Vector3.UP)*sin(state_time*.7)*.4
+	trail_audio.volume_db=-2.5 if phase=="walk" else -7.0
+	trail_audio.unit_size=7 if phase=="walk" else 5
 	sound_clock-=delta
 	if sound_clock<=0:
 		trail_audio.play()
 		sound_clock=2.4
 
 func update_jumpscare() -> void:
+	if town_entered or in_loomesville():
+		place_town(true)
+		return
 	var camera: Camera3D=game.player.camera
 	var forward: Vector3=-camera.global_basis.z
 	forward.y=0
@@ -730,7 +799,19 @@ func transition(destination: String) -> void:
 	game.transition_shade.show()
 	pursuer.hide()
 
+func in_loomesville() -> bool:
+	var at: Vector3=game.player.global_position
+	return at.x>=96 and at.x<=166 and at.z<=-698 and at.z>=-808
+
 func place_town(keep_position: bool=false) -> void:
+	town_entered=true
+	look_back_armed=false
+	look_back_time=0
+	game.transition_shade.hide()
+	game.player.enabled=true
+	game.watcher_director.reset(game.watcher)
+	mirror_revealed=false
+	mirror_face.hide()
 	active=true
 	town.show()
 	# Keep the travelled trail visible at the edge of town.
@@ -749,7 +830,7 @@ func place_town(keep_position: bool=false) -> void:
 	trail_audio.stop()
 	game.player.movement_scale=1
 	if not keep_position:place_player(Vector3(120,.15,-739),HOUSE+Vector3(0,1,5))
-	set_phase("town","Follow the dark footprints to house 17.")
+	set_phase("town","Follow the footprints to house 17.")
 	save_at("town")
 
 func place_loop() -> void:

@@ -3,6 +3,7 @@ extends Node3D
 const MODELS := ["01_grinning_clerk", "03_long_neck_worker", "04_crooked_passenger", "01_grinning_clerk", "03_long_neck_worker"]
 const Route=preload("res://scripts/route.gd")
 const Story=preload("res://scripts/story.gd")
+var view_checks=preload("res://scripts/watcher_encounter.gd").new()
 var game
 var outside: Node3D
 var schedule: Array[int]=[]
@@ -35,7 +36,8 @@ func configure(positions: Array[Vector3]) -> void:
 		actor.hide()
 		var limbs := rig_limbs(standing)
 		actors.append({"node":actor, "standing":standing, "seated":seated, "limbs":limbs,
-			"state":"pending", "seat":-1, "path":[], "stride":0.0, "time":0.0, "features":[], "corpse":null, "exit_stop":0})
+			"state":"pending", "seat":-1, "path":[], "stride":0.0, "time":0.0, "features":[], "corpse":null, "exit_stop":0,
+			"corpse_staged":false, "corpse_reveal":0.0, "corpse_materials":[]})
 
 func rig_limbs(model: Node3D) -> Array[Node3D]:
 	var pivots: Array[Node3D] = []
@@ -77,6 +79,9 @@ func reset(restored: int = 0, seed_value: int = 4707, stop: int = 0) -> void:
 		if actor.node.get_parent()!=self:actor.node.reparent(self,false)
 		if is_instance_valid(actor.corpse):actor.corpse.free()
 		actor.corpse=null
+		actor.corpse_staged=false
+		actor.corpse_reveal=0.0
+		actor.corpse_materials=[]
 		actor.state="pending"
 		actor.seat=-1
 		actor.path=[]
@@ -96,6 +101,10 @@ func reset(restored: int = 0, seed_value: int = 4707, stop: int = 0) -> void:
 				actor.node.position=shelter_point(i)
 				actor.node.show()
 				make_faceless(i)
+				# An earlier leg stays behind on checkpoint reload, never jumps ahead again.
+				actor.corpse_staged=true
+				actor.corpse_reveal=1.2
+				actor.corpse.show()
 			else:
 				assign_seat(i)
 				settle(i)
@@ -154,6 +163,65 @@ func build_corpse(index: int) -> void:
 	root.hide()
 	actor.corpse=root
 
+func corpse_candidate(index: int, camera: Camera3D) -> Vector3:
+	var forward := -camera.global_basis.z
+	var local_view: Vector3=game.bus.global_basis.inverse()*forward
+	if absf(forward.y)>.65 or (local_view.z>.6 and absf(local_view.x)<.6):return Vector3.INF
+	var last_z: float=Story.STOP_Z[schedule[index]+1]+10 if schedule[index]<5 else -INF
+	var best := Vector3.INF
+	var score := -INF
+	for offset in [-34,-28,-22,-16,-10]:
+		var z: float=game.bus.position.z+offset
+		if z<last_z or z>Story.STOP_Z[schedule[index]]-25:continue
+		for side in [-1,1]:
+			if absf(local_view.x)>.2 and signf(local_view.x)!=side:continue
+			var point := Route.point(side*9.2,0,z)
+			var occupied := false
+			for other in actors:
+				if other.corpse_staged and is_instance_valid(other.corpse) and other.corpse.position.distance_to(point)<6:occupied=true
+			if occupied:continue
+			var center := point+Vector3(0,.25,0)
+			var diff := center-camera.global_position
+			if diff.length()<13 or diff.length()>39:continue
+			var aim := forward.dot(diff.normalized())
+			if aim<.2 or not view_checks.window_clear(camera,game.bus,center):continue
+			var on_screen := camera.is_position_in_frustum(center)
+			# Place beyond the edge of the window where possible. A distant fog reveal
+			# handles an already watched approach; nothing is repositioned afterward.
+			if on_screen and diff.length()<25:continue
+			var candidate_score := aim+(0.8 if not on_screen else 0.0)-absf(diff.length()-25)*.015
+			if candidate_score>score:
+				score=candidate_score
+				best=point
+	return best
+
+func update_corpse(index: int, delta: float, camera: Camera3D) -> void:
+	var actor: Dictionary=actors[index]
+	if not actor.corpse_staged:
+		var on_ride: bool=game.story.stage in Story.MOVING
+		if not on_ride or game.bus.position.z>=Story.STOP_Z[schedule[index]]-12:return
+		var candidate := corpse_candidate(index,camera)
+		if candidate==Vector3.INF:return
+		actor.corpse.position=candidate
+		actor.corpse_staged=true
+		actor.corpse_reveal=0.0
+		for part in actor.corpse.find_children("*","MeshInstance3D",true,false):
+			var material=part.get_active_material(0)
+			if not material is StandardMaterial3D:continue
+			actor.corpse_materials.append({"mesh":part,"original":part.material_override})
+			var fade: StandardMaterial3D=material.duplicate()
+			fade.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+			fade.albedo_color.a=0.0
+			part.material_override=fade
+		actor.corpse.show()
+	if actor.corpse_reveal<1.2:
+		actor.corpse_reveal=minf(1.2,actor.corpse_reveal+delta)
+		for entry in actor.corpse_materials:
+			entry.mesh.material_override.albedo_color.a=smoothstep(0,1.2,actor.corpse_reveal)
+		if actor.corpse_reveal>=1.2:
+			for entry in actor.corpse_materials:entry.mesh.material_override=entry.original
+			actor.corpse_materials=[]
+
 func advance_exit(index: int, delta: float, camera: Camera3D) -> void:
 	var actor: Dictionary=actors[index]
 	var node: Node3D=actor.node
@@ -162,14 +230,14 @@ func advance_exit(index: int, delta: float, camera: Camera3D) -> void:
 		actor.standing.position.y=lerpf(-.3,0,minf(1,actor.time/.7))
 		if actor.time>=.7:
 			actor.state="exit_walk"
-			actor.path=[Vector3(0,.78,node.position.z-.2),Vector3(0,.78,-1.65)]
+			actor.path=[Vector3(0,.78,node.position.z-.2),Vector3(0,.78,-2.05),Vector3(-.55,.78,-2.4),Vector3(-.55,.78,-3.55),Vector3(.72,.78,-3.35)]
 	elif actor.state=="exit_stare":
 		var direction: Vector3=node.to_local(camera.global_position)
 		var target_yaw := node.rotation.y+atan2(-direction.x,-direction.z)
 		node.rotation.y=lerp_angle(node.rotation.y,target_yaw,minf(1,delta*3))
-		if actor.time>=2.6:
+		if actor.time>=3.4:
 			actor.state="exit_door"
-			actor.path=[Vector3(-.55,.78,-2.25),Vector3(-.55,.78,-3.55),Vector3(1.45,.78,-3.55),Vector3(3.6,.08,-3)]
+			actor.path=[Vector3(1.45,.78,-3.35),Vector3(3.6,.08,-3)]
 	elif actor.state=="erasing":
 		# Features sink into the head over a second, then become bare skin.
 		for part in actor.features:part.scale=Vector3.ONE*maxf(.001,1-actor.time/1.2)
@@ -267,7 +335,7 @@ func update(delta: float, camera: Camera3D, player_local: Vector3, doors_open: b
 	for i in range(requested):
 		var a: Dictionary=actors[i]
 		if a.state=="faceless":
-			if game.bus.position.z<Story.STOP_Z[schedule[i]]-12:a.corpse.show()
+			update_corpse(i,delta,camera)
 		elif String(a.state).begins_with("exit_") or a.state=="erasing":advance_exit(i,delta,camera)
 		elif a.state=="seated" and schedule[i]==current_stop and doors_open and not exits_busy():
 			owners[a.seat]=-1
