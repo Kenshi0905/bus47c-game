@@ -39,6 +39,8 @@ func _ready() -> void:
 
 func in_clearing(x: float, z: float) -> bool:
 	if z< -120 and z> -690 and absf(x)<11:return true
+	for marker in preload("res://scripts/horror_signs.gd").ROAD_MARKERS:
+		if absf(z-marker)<12 and absf(x)<12:return true
 	# Clear the actual world-space footpath and small, separate fruit patches.
 	if z< -660 and z> -765:
 		var world := Route.point(x,0,z)

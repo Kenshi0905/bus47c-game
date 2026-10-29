@@ -8,6 +8,9 @@ const Forest = preload("res://scripts/forest.gd")
 const Passengers = preload("res://scripts/bus_passengers.gd")
 const MENU_FONT = preload("res://assets/ui/fonts/BebasNeue-Regular.ttf")
 const SAVE := "user://checkpoint.json"
+const HorrorSigns=preload("res://scripts/horror_signs.gd")
+var signs: Node3D
+var trip_seed := 4707
 var story = Story.new()
 var aftermath: Node3D
 var world_environment: Environment
@@ -82,6 +85,9 @@ func _ready() -> void:
 	_build_world()
 	_build_ui()
 	_build_audio()
+	signs=HorrorSigns.new()
+	add_child(signs)
+	signs.setup(self)
 	aftermath=Aftermath.new()
 	add_child(aftermath)
 	aftermath.setup(self)
@@ -538,7 +544,7 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   v0.6.2", 16, Color("9d9f94"))
+	var version := label("BUS 47C   v0.7.0", 16, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(1070, 666)
@@ -663,7 +669,8 @@ func resume_game() -> void:
 	player.enabled = not modal and not (aftermath.active and aftermath.phase in ["closet","burying","transit","jumpscare"])
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if modal else Input.MOUSE_MODE_CAPTURED
 
-func start_game(checkpoint: int) -> void:
+func start_game(checkpoint: int, saved_seed: int = -1) -> void:
+	trip_seed=saved_seed if saved_seed>=0 else (4707 if "--smoke" in OS.get_cmdline_user_args() or "--capture" in OS.get_cmdline_user_args() else randi()%2147483647)
 	aftermath.reset()
 	story.restore(checkpoint)
 	player.reset_zoom()
@@ -677,7 +684,9 @@ func start_game(checkpoint: int) -> void:
 	seated_index=-1
 	player.set_seated(false,Vector3.ZERO)
 	var restored: int={Story.Stage.PASSENGER:1,Story.Stage.SECOND_STOP:3,Story.Stage.THIRD_STOP:4,Story.Stage.FOURTH_STOP:5,Story.Stage.DEER:5}.get(checkpoint,0)
-	passengers.reset(restored)
+	var stop: int={Story.Stage.PASSENGER:1,Story.Stage.SECOND_STOP:2,Story.Stage.THIRD_STOP:3,Story.Stage.FOURTH_STOP:4,Story.Stage.DEER:5}.get(checkpoint,0)
+	passengers.reset(restored,trip_seed,stop)
+	if checkpoint==Story.Stage.DEER:passengers.current_stop=-1
 	watcher_director.reset(watcher)
 	subtitle.text=""
 	subtitle_frame.hide()
@@ -709,7 +718,7 @@ func continue_game() -> void:
 		var validator = Story.new()
 		validator.restore(value.get("stage",0))
 		checkpoint = validator.stage
-	start_game(checkpoint)
+	start_game(checkpoint,int(value.get("trip_seed",4707)) if value is Dictionary and (value.get("trip_seed",4707) is float or value.get("trip_seed",4707) is int) else 4707)
 	if value is Dictionary and value.get("after",{}) is Dictionary and not value.get("after",{}).is_empty():
 		aftermath.restore(value.after)
 
@@ -722,7 +731,7 @@ func save_checkpoint() -> void:
 	if file == null:
 		say("Checkpoint could not be saved. You can still finish this session.",5)
 		return
-	file.store_string(JSON.stringify({"version":2,"stage":story.checkpoint(),"after":aftermath.checkpoint_data()}))
+	file.store_string(JSON.stringify({"version":2,"trip_seed":trip_seed,"stage":story.checkpoint(),"after":aftermath.checkpoint_data()}))
 	file.close()
 	var err := DirAccess.rename_absolute(path+".tmp",path)
 	if err != OK: say("Checkpoint storage unavailable.",4)
@@ -763,6 +772,7 @@ func show_document(kind: String) -> void:
 	paper_surface.show()
 	clear_box(modal_box)
 	var title := paper_label({"note":"47C RELIEF SERVICE","journal":"SHIFT NOTES","ticket":"47C ONE WAY","newspaper":"THE LOOMESVILLE GAZETTE"}.get(kind,"SHIFT NOTES"),30)
+	if Aftermath.District.DOCUMENTS.has(kind):title.text=Aftermath.District.DOCUMENTS[kind][0]
 	title.add_theme_font_override("font",MENU_FONT)
 	modal_box.add_child(title)
 	modal_box.add_child(paper_label("MORNING EDITION" if kind=="newspaper" else "LOOMESVILLE FORESTRY DIVISION",12))
@@ -771,6 +781,7 @@ func show_document(kind: String) -> void:
 	if kind=="journal": copy = "End of shift. Get home.\n\n" + objective.text + "\n\nRoute\nFirewatch, Mill Road, Old Quarry\nPine Crossing, St Bride's, Loomesville\n\nEmpty seats are available.\nE to sit. Space to stand."
 	if kind=="ticket":copy="SINGLE FARE\n\nFROM: FIREWATCH SHELTER\nTO:   LOOMESVILLE\n\nSERVICE: 47C\nTIME:    02:36\n\nOne passenger.\n\nThe paper smells of smoke."
 	if kind=="newspaper":copy="NIGHT BUS DESTROYED BY FIRE\n\nNo survivors were recovered from service 47C. Investigators suspect arson.\n\nPolice seek the state firewatcher assigned to Loomesville Forest.\n\nBelow the headline is your photograph.\n\nThe clock above the counter reads 02:36."
+	if Aftermath.District.DOCUMENTS.has(kind):copy=Aftermath.District.DOCUMENTS[kind][1]
 	modal_box.add_child(paper_label(copy,21))
 	var close := button("FOLD NOTE  [E]" if kind=="note" else "CLOSE NOTES  [TAB]",close_document)
 	close.add_theme_color_override("font_color",Color("30382f"))
@@ -875,6 +886,7 @@ func apply_stage(save: bool = true) -> void:
 		Story.Stage.FINISHED:
 			aftermath.begin_forest()
 	align_bus()
+	if story.stage in Story.STOP_STAGES:passengers.begin_stop(story.stop_index())
 	if save:save_checkpoint()
 
 
@@ -911,6 +923,7 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	if not running:update_title_scene(delta)
 	if not running or paused or modal:return
+	signs.update(delta)
 	var moving_stage: bool = story.stage in Story.MOVING
 	if aftermath.active:
 		aftermath.update(delta)
@@ -969,7 +982,7 @@ func quit_cleanly() -> void:
 	get_tree().quit()
 
 func smoke_test() -> void:
-	get_tree().create_timer(180).timeout.connect(func():get_tree().quit(2))
+	get_tree().create_timer(300).timeout.connect(func():get_tree().quit(2))
 	# Exercise real menu actions and Escape without starting or changing a save.
 	assert(menu_camera.current and not player.enabled)
 	assert(get_viewport().gui_get_focus_owner() is Button)
@@ -1195,6 +1208,7 @@ func smoke_test() -> void:
 	assert(aftermath.active and aftermath.phase=="disembark")
 	await test_ride_features()
 	assert(await preload("res://tests/scenario_checks.gd").run(self))
+	assert(await preload("res://tests/district_checks.gd").run(self))
 	print("PASS: six stops, moving deer, slow zoom-only watcher, seats, doors, forest failures/recovery, both routes and both endings")
 	quit_cleanly()
 
@@ -1208,7 +1222,7 @@ func capture_frame(name_text: String) -> void:
 		paused=was_paused
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
-	get_viewport().get_texture().get_image().save_png("res://../docs/v0.6.2-"+name_text+".png")
+	get_viewport().get_texture().get_image().save_png("res://../docs/v0.7.0-"+name_text+".png")
 
 func capture_preview() -> void:
 	get_tree().create_timer(60).timeout.connect(func():get_tree().quit(2))
@@ -1278,7 +1292,8 @@ func capture_preview() -> void:
 	aftermath.update(1.9)
 	paused=true
 	await capture_frame("retry")
-	print("Rendered v0.6.2 signage, dissolve, hunger timing and visible capture menu; retry button works")
+	await preload("res://tests/district_checks.gd").capture(self)
+	print("Rendered v0.7.0 signage, dissolve, hunger timing and visible capture menu; retry button works")
 	quit_cleanly()
 
 func glass(parent: Node3D, pos: Vector3, size: Vector3) -> MeshInstance3D:
@@ -1383,6 +1398,7 @@ func roadside_stop(z: float, name_text: String) -> void:
 func _physics_process(delta: float) -> void:
 	if not running or paused or modal: return
 	if aftermath.active:
+		if passengers.current_stop==5:passengers.update(delta,player.camera,bus.to_local(player.global_position),door_amount>.98)
 		update_door(delta)
 		board_if_inside()
 		return

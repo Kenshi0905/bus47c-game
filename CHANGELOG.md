@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+- Weathered roadside warnings on both sides of the route, an overhead message and a rebuilt woods sign. Raised blood streaks and animated falling drops remain editable procedural geometry.
+- Passengers depart at varied later stops, hold a stare toward the player, walk through the door and lose their facial features inside the shelter. Seats become available again. The saved journey seed preserves the schedule across retries.
+- Departed passengers remain at their shelters as the bus moves. On the following leg, matching headless bodies appear in irregular blood pools beside the road.
+- Expanded Loomesville with brick houses, lit windows, street lamps, parked cars and overhead wires. Enterable Morrow's Pizza, Night Owl Diner and 47 Mart have furniture, shelves, fridges, counters and optional story notes.
+- House 17 gains a covered porch, patterned wallpaper, framed pictures, wood trim, a worn runner, ceiling lights and a hallway with side rooms. The entry knife and rear burial route remain accessible.
+- Added checks for random schedule persistence, the stare and facial change, stationary departed passengers, body reveals, animated drops and physical walking into and out of all three shops. Existing six-stop and both-ending checks remain required.
+
 ## 0.6.2
 - Rebuilt the shelter sign as a physical transit plaque with a separate 47C badge. Removed slash and em-dash separators from game signs, notes, menus, credits and prompts.
 - Watcher disappearance now dissolves the model over 0.75 seconds, with drifting smoke, a fading red remnant and a positional sound. The remnant persists after the body vanishes and clears before another appearance.

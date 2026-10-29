@@ -4,6 +4,8 @@ const Route = preload("res://scripts/route.gd")
 const Story = preload("res://scripts/story.gd")
 const HOUSE := Vector3(120,0,-775)
 const SAFE_PHASES := ["forest","fork","town","burial","closet","dawn","loop"]
+const District=preload("res://scripts/town_district.gd")
+var district: Node3D
 var game
 var active := false
 var phase := ""
@@ -100,18 +102,10 @@ func lantern(parent: Node3D, at: Vector3, warm: bool=true) -> void:
 func build_forest() -> void:
 	var fork := Route.FOREST_FORK
 	slab(props,point(4,-683),fork,2.2,"383f32")
-	# A shoulder-mounted sign faces people approaching from the broken bus.
-	var signpost := Node3D.new()
-	props.add_child(signpost)
-	signpost.position=fork+Vector3(2.6,0,2.6)
-	signpost.rotation.y=-PI/4
-	game.block(signpost,Vector3(0,.86,0),Vector3(.1,1.72,.1),"65583e",true)
-	game.block(signpost,Vector3(0,1.65,0),Vector3(1.8,.48,.12),"827044")
-	for side in [-1,1]:
-		var direction := "←  LOOMESVILLE" if side>0 else "LOOMESVILLE  →"
-		var sign: Label3D=game.text3(signpost,direction+"\nFOOTPATH",Vector3(0,1.65,side*.068),26,Color("eed593"))
-		sign.pixel_size=.0038
-		if side<0:sign.rotation.y=PI
+	var signpost: Node3D=game.signs.add_board(props,fork+Vector3(2.6,0,2.6),"DON'T GO IN\nTHE WOODS",3.0,1.35,-PI/4,33)
+	var direction: Label3D=game.text3(signpost,"←  LOOMESVILLE FOOTPATH",Vector3(0,1,.09),30,Color("c5b795"))
+	direction.pixel_size=.0035
+	game.block(signpost,Vector3(0,1,0),Vector3(2.4,.28,.1),"46392d")
 	lantern(props,signpost.position+Vector3(1,0,.5))
 	hotspot("shortcut",signpost,Vector3(0,1.5,0),"Take the walking path",3.5)
 	hotspot("take_bus",game.bus,Vector3(.3,1.65,-3),"Continue to Loomesville by bus",2.7)
@@ -159,12 +153,6 @@ func build_town() -> void:
 	for x in [114.5,125.5]:
 		game.block(town,Vector3(x,.025,-754),Vector3(2,.05,76),"565b51",true)
 		for z in [-735,-754,-774]:lantern(town,Vector3(x,0,z))
-	for side in [-1,1]:
-		for z in [-740,-758]:
-			var at := Vector3(120+side*16,2,z)
-			game.block(town,at,Vector3(11,4,10),"333d37",true)
-			game.block(town,at+Vector3(0,2.2,0),Vector3(12,.45,11),"202c28")
-			for dz in [-2,2]:game.block(town,at+Vector3(-side*5.53,0,dz),Vector3(.04,1.5,1.5),"1b2b2c")
 	for z in range(-742,-770,-2):
 		for side in [-1,1]:
 			var footprint: MeshInstance3D=game.block(town,Vector3(120+side*.2,.045,z+side*.35),Vector3(.13,.015,.31),"542c27")
@@ -282,11 +270,9 @@ func build_town() -> void:
 	lantern(town,escape)
 	game.text3(town,"FORESTRY WAY",escape+Vector3(0,1.8,0),30)
 	hotspot("escape",town,escape+Vector3(0,1,0),"Follow the trail into the woods",3)
-	# Leave an opening where the golden path joins the village.
-	game.block(town,Vector3(142,1.2,-755),Vector3(.2,2.4,100),"27382c",true)
-	game.block(town,Vector3(98,1.2,-768),Vector3(.2,2.4,74),"27382c",true)
-	game.block(town,Vector3(98,1.2,-711),Vector3(.2,2.4,12),"27382c",true)
-	game.block(town,Vector3(120,1.2,-805),Vector3(44,2.4,.2),"27382c",true)
+	district=District.new()
+	town.add_child(district)
+	district.setup(game,self,home)
 
 func daylight(enabled: bool) -> void:
 	game.world_environment.ambient_light_energy=.6 if enabled else .13
@@ -427,10 +413,10 @@ func allowed() -> Array:
 				if i not in fruit_taken:ids.append("fruit"+str(i))
 			return ids
 		"fork":return ["shortcut","take_bus"]
-		"town":return ["knife"]
+		"town":return ["knife","shop_pizza","shop_diner","shop_mart"]
 		"confront":return ["defend"] if knife else ["knife"]
 		"mirror":return ["mirror"] if mirror_wait<=0 else []
-		"escape":return ["escape"]
+		"escape":return ["escape","shop_pizza","shop_diner","shop_mart"]
 		"burial":return ["grave","body"] if shovel else ["shovel","body"]
 		"closet_ready":return ["closet"]
 		"dawn":return ["newspaper"] if coffee else ["coffee"]
@@ -467,7 +453,9 @@ func interact(id: String) -> void:
 		fail("You opened the door before morning.")
 		return
 	if id not in allowed():return
-	if id.begins_with("fruit"):
+	if id.begins_with("shop_"):
+		game.show_document(id)
+	elif id.begins_with("fruit"):
 		var index := int(id.trim_prefix("fruit"))
 		fruit_taken.append(index)
 		hunger=minf(100,hunger+22)
@@ -593,6 +581,7 @@ func update(delta: float) -> void:
 			game.set_door(true)
 			game.next_stop_label.text="LOOMESVILLE TERMINUS"
 			game.play_sound("chime")
+			game.passengers.begin_stop(5)
 			set_phase("arrival","Loomesville. Step off the bus to go home.")
 	elif phase=="arrival":
 		if game.player.get_parent()!=game.bus:transition("town")
@@ -615,7 +604,7 @@ func update(delta: float) -> void:
 		if knife:attack_ready_time+=delta
 		status.text="LMB or E   DEFEND" if knife else ""
 		if knife and attack_ready_time>2.5:
-			opponent.position=opponent.position.move_toward(target,delta*.65)
+			opponent.position=opponent.position.move_toward(district.attack_waypoint(opponent.position,target),delta*.65)
 			var face := target-opponent.position
 			if face.length()>.1:opponent.rotation.y=atan2(-face.x,-face.z)
 			if opponent.global_position.distance_to(game.player.global_position)<.7:fail("The attacker reached you. Use left-click or E while it is within reach.")
