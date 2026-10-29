@@ -38,6 +38,11 @@ func _ready() -> void:
 			for kind in range(4):
 				add_batch(meshes[kind], transforms[kind], center_z, 165.0 if kind < 2 else 80.0, rng)
 	add_mist()
+	# Keep the journey's atmosphere independent of story encounters.
+	var atmosphere := preload("res://scripts/journey_atmosphere.gd").new()
+	atmosphere.name = "JourneyAtmosphere"
+	add_child(atmosphere)
+	atmosphere.call_deferred("setup", get_parent())
 
 func in_clearing(x: float, z: float) -> bool:
 	if z< -120 and z> -690 and absf(x)<11:return true
