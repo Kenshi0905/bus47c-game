@@ -36,6 +36,8 @@ $files=@('Bus47C.exe','Bus47C.pck','READ_ME.txt','AUDIO_SOURCES.txt','BUILD_INFO
 foreach($file in $files){if(-not(Test-Path -LiteralPath (Join-Path $buildDirectory $file))){throw "Missing build file: $file"}}
 Write-Output "Windows beta exported to $buildDirectory"
 if(-not [string]::IsNullOrWhiteSpace($ZipPath)){
+    # Windows PowerShell 5 loads the archive enum from a separate assembly.
+    Add-Type -AssemblyName System.IO.Compression
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $archivePath=[IO.Path]::GetFullPath($ZipPath)
     New-Item -ItemType Directory -Force -Path (Split-Path $archivePath -Parent) | Out-Null
