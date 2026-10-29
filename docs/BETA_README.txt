@@ -1,5 +1,5 @@
 BUS 47C
-Windows beta 0.11.0-beta.1
+Windows beta 0.12.0-beta.1
 
 PLAY
 Extract the whole ZIP into a folder, then double-click Bus47C.exe.
@@ -7,16 +7,14 @@ Keep Bus47C.pck beside Bus47C.exe. No Godot installation is needed.
 Choose New Journey to experience the complete current sequence.
 
 NEW IN THIS BETA
-Bodies stay grounded, collide with walls and follow the route you walk.
-Looking around no longer swings a dragged body. E releases it.
-The bus-route attacker wears his dark suit and red tie, including after death.
-Wait for the wardrobe countdown and birdsong, then press E to step out.
-Leaving early triggers a first-person attack with hounds and a rising red haze.
-On the footpath route, the town is safe but entering the surrounding forest
-before finishing the mirror scene triggers a separate hound encounter.
-The Forestry Way body reveal uses a full-size body resting on the path.
-The opening establishes your firewatch job. Blood stays visibly red at night.
-All death sequences finish at a visible Try Again menu.
+The gameplay filter is enabled by default across night and morning scenes.
+Muted colours, cool shadows, film grain and soft bloom retain a retro look.
+Bus paint, upholstery and ceilings have procedural wear; glass carries faint
+rain marks with a clearer windshield so the road remains visible.
+Damp roads catch the moving headlights. Warm cabin and house lights leave
+deeper shadows between fixtures. The pause menu layout is unchanged.
+The previous body, wardrobe, forest and ending fixes are included.
+You can switch the picture filter off in Settings.
 
 CONTROLS
 WASD: walk or shift position while hiding

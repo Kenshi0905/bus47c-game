@@ -97,6 +97,9 @@ func _ready() -> void:
 	aftermath=Aftermath.new()
 	add_child(aftermath)
 	aftermath.setup(self)
+	var surfaces=preload("res://scripts/surface_atmosphere.gd").new()
+	add_child(surfaces)
+	surfaces.setup(self)
 	set_door(false,true)
 	bus.position.z=0
 	player.position=Vector3(8,.1,-10)
@@ -115,6 +118,7 @@ func _ready() -> void:
 	if "--capture10" in OS.get_cmdline_user_args():call_deferred("polish_capture")
 	if "--checks11" in OS.get_cmdline_user_args():call_deferred("encounter_test")
 	if "--capture11" in OS.get_cmdline_user_args():call_deferred("encounter_capture")
+	if "--capture12" in OS.get_cmdline_user_args():call_deferred("surface_capture")
 
 func _setup_inputs() -> void:
 	var keys := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "sprint": KEY_SHIFT, "interact": KEY_E, "pause_game": KEY_ESCAPE, "stand": KEY_SPACE, "notes": KEY_TAB}
@@ -250,6 +254,7 @@ func _build_world() -> void:
 func _build_shelter() -> void:
 	var shelter := Node3D.new()
 	add_child(shelter)
+	shelter.name="ForestShelter"
 	shelter.position = Vector3(5,0,0)
 	block(shelter,Vector3(0,.1,0),Vector3(3.8,.2,2.2),"52534b",true)
 	for x in [-1.7,1.7]:
@@ -344,6 +349,7 @@ func _build_bus() -> void:
 	for index in range(2):
 		var hinge := Node3D.new()
 		bus.add_child(hinge)
+		hinge.name="DoorLeaf"+str(index)
 		hinge.position=Vector3(1.35,.78,-3.8 if index==0 else -2.2)
 		var dz := .4 if index==0 else -.4
 		block(hinge,Vector3(0,.46,dz),Vector3(.065,.92,.78),"466353")
@@ -561,7 +567,7 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   v0.11.0-beta.1", 14, Color("9d9f94"))
+	var version := label("BUS 47C   v0.12.0-beta.1", 14, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(982, 666)
@@ -1278,7 +1284,7 @@ func capture_frame(name_text: String) -> void:
 	if folder.is_empty():folder="res://../docs" if OS.has_feature("editor") else "user://captures"
 	folder=ProjectSettings.globalize_path(folder).simplify_path()
 	DirAccess.make_dir_recursive_absolute(folder)
-	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.11.0-beta.1-"+name_text+".png"))
+	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.12.0-beta.1-"+name_text+".png"))
 
 func capture_preview() -> void:
 	get_tree().create_timer(90).timeout.connect(func():get_tree().quit(2))
@@ -1696,6 +1702,8 @@ func build_road() -> void:
 		var road := MeshInstance3D.new()
 		road.mesh=tool.commit()
 		add_child(road)
+		road.name="RoadSurface"+str(layer)
+		road.set_meta("road_layer",layer)
 
 func update_deer() -> void:
 	if story.stage!=Story.Stage.FINAL_RIDE:return
@@ -1713,7 +1721,7 @@ func afternarrative_visibility() -> void:
 		aftermath.events.arrow_copy.hide()
 
 func test_run() -> bool:
-	for flag in ["--smoke","--capture","--checks09","--capture09","--checks10","--capture10","--checks11","--capture11"]:
+	for flag in ["--smoke","--capture","--checks09","--capture09","--checks10","--capture10","--checks11","--capture11","--capture12"]:
 		if flag in OS.get_cmdline_user_args():return true
 	return false
 
@@ -1743,3 +1751,7 @@ func encounter_test() -> void:
 func encounter_capture() -> void:
 	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
 	await preload("res://tests/encounter_capture.gd").run(self)
+
+func surface_capture() -> void:
+	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
+	await preload("res://tests/surface_capture.gd").run(self)

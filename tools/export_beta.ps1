@@ -31,7 +31,7 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'game/assets/ui/fonts/OFL.txt') -
 Copy-Item -LiteralPath (Join-Path $projectRoot 'game/assets/ui/fonts/ShareTechMono-OFL.txt') -Destination (Join-Path $notices 'SHARE_TECH_MONO_OFL.txt') -Force
 $revision=(& git rev-parse HEAD).Trim()
 $sourceState=if((& git status --porcelain -- game tools docs/BETA_README.txt docs/audio-sources.md)){ 'Working tree includes beta changes' }else{ 'Clean checkout' }
-@("Bus 47C 0.11.0-beta.1", "Source base: $revision", "Source state: $sourceState", "Built UTC: $([DateTime]::UtcNow.ToString('o'))",'Godot: 4.7.2.stable','Platform: Windows x86_64','Graphics: Compatibility OpenGL 3.3') | Set-Content -LiteralPath (Join-Path $buildDirectory 'BUILD_INFO.txt') -Encoding utf8
+@("Bus 47C 0.12.0-beta.1", "Source base: $revision", "Source state: $sourceState", "Built UTC: $([DateTime]::UtcNow.ToString('o'))",'Godot: 4.7.2.stable','Platform: Windows x86_64','Graphics: Compatibility OpenGL 3.3') | Set-Content -LiteralPath (Join-Path $buildDirectory 'BUILD_INFO.txt') -Encoding utf8
 $files=@('Bus47C.exe','Bus47C.pck','READ_ME.txt','AUDIO_SOURCES.txt','BUILD_INFO.txt')
 foreach($file in $files){if(-not(Test-Path -LiteralPath (Join-Path $buildDirectory $file))){throw "Missing build file: $file"}}
 Write-Output "Windows beta exported to $buildDirectory"
@@ -43,7 +43,7 @@ if(-not [string]::IsNullOrWhiteSpace($ZipPath)){
     $archive=[IO.Compression.ZipFile]::Open($pendingPath,[IO.Compression.ZipArchiveMode]::Create)
     try{
         foreach($file in ($files+@('Licenses/GODOT_LICENSE.txt','Licenses/GODOT_THIRD_PARTY.txt','Licenses/BEBAS_NEUE_OFL.txt','Licenses/SHARE_TECH_MONO_OFL.txt'))){
-            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,(Join-Path $buildDirectory $file),('Bus47C-Beta-0.11.0-Windows/'+$file),[IO.Compression.CompressionLevel]::Optimal) | Out-Null
+            [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,(Join-Path $buildDirectory $file),('Bus47C-Beta-0.12.0-Windows/'+$file),[IO.Compression.CompressionLevel]::Optimal) | Out-Null
         }
     }finally{$archive.Dispose()}
     Move-Item -LiteralPath $pendingPath -Destination $archivePath -Force

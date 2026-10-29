@@ -4,6 +4,10 @@ uniform int kind = 0;
 varying vec3 world;
 varying vec3 normal_world;
 float hash(vec3 p) { return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }
+float noise(vec2 p) {
+	vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+	return mix(mix(hash(vec3(i,0)),hash(vec3(i+vec2(1,0),0)),f.x),mix(hash(vec3(i+vec2(0,1),0)),hash(vec3(i+vec2(1),0)),f.x),f.y);
+}
 void vertex() {
 	world=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz;
 	normal_world=normalize((MODEL_MATRIX*vec4(NORMAL,0.0)).xyz);
@@ -14,8 +18,11 @@ void fragment() {
 	vec3 grain_width=fwidth(grain_pos);
 	float grain_visibility=1.0-smoothstep(.35,1.1,max(grain_width.x,max(grain_width.y,grain_width.z)));
 	float grit=mix(.5,hash(floor(grain_pos)),grain_visibility);
-	vec3 color=base.rgb*(0.83+grit*0.16);
+	vec3 color=base.rgb*(0.87+grit*0.08);
 	float horizontal=abs(normal_world.x)>0.5?world.z:world.x;
+	vec2 surface=abs(normal_world.y)>.5?world.xz:vec2(horizontal,world.y);
+	float stain=noise(surface*1.3)*.65+noise(surface*4.7)*.35;
+	color*=.79+stain*.3;
 	if (kind==1) {
 		float row=floor(world.y*7.0);
 		vec2 brick=fract(vec2(horizontal*3.0+mod(row,2.0)*0.5,world.y*7.0));
@@ -36,7 +43,8 @@ void fragment() {
 	} else if (kind==5) {
 		vec2 wallpaper=fract(vec2(horizontal*4.0,world.y*3.0))-.5;
 		float flower=step(abs(wallpaper.x)+abs(wallpaper.y),.2);
-		color*=1.0-flower*.22;
+		color*=1.0-flower*.16;
+		color*=.86+.14*smoothstep(.05,1.0,world.y);
 	} else if (kind==6) {
 		vec2 panel=fract(world.xz*.85);
 		color*=0.55+0.45*step(.018,min(panel.x,panel.y));
@@ -68,5 +76,6 @@ void fragment() {
 		color*=.8+.2*seam;
 	}
 	ALBEDO=color;
-	ROUGHNESS=kind==11?.44:(kind==3?.62:.91);
+	ROUGHNESS=kind==11?.48:(kind==3?.43:(kind==9?.59:.87));
+	SPECULAR=kind==3?.42:.3;
 }

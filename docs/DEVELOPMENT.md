@@ -29,6 +29,7 @@ The setup downloads the pinned official engine and imports the project. Engine b
 | `game/scripts/forest_events.gd` | Changing warning, search boundary and Forestry Way ending |
 | `game/scripts/town_district.gd` | Shops, house details and editable signs |
 | `game/scripts/town_horror.gd` | Town arrival scene and persistent blackout |
+| `game/scripts/surface_atmosphere.gd` | Bus wear, glass, damp road materials and selective shadows |
 | `game/scripts/story_audio.gd` | Phase-specific audio, ducking and pause behavior |
 | `game/tests` | Story, traversal, regression and capture scripts |
 
@@ -42,10 +43,10 @@ powershell -ExecutionPolicy Bypass -File tools/test.ps1
 
 This imports the project, validates the route and runs the full scene checks. The same checks run on GitHub Actions. Check both the exit code and the logs for script errors or failed assertions. Native rendering still needs a graphical run.
 
-For the current scene capture set:
+For the current lighting and material capture set:
 
 ```powershell
-.\tools\godot\Godot_v4.7.2-stable_win64_console.exe --path game -- --capture09
+.\tools\godot\Godot_v4.7.2-stable_win64_console.exe --path game -- --capture12
 ```
 
 Capture and smoke-test modes use a separate test save. Set `BUS47C_CAPTURE_DIR` to an absolute directory to keep captures out of the tracked preview folder.

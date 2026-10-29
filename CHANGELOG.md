@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.0-beta.1
+- Applied a unified gameplay filter at night and dawn: muted film colour, cool shadows, warm highlights, softened exposure, fine grain, vignette and restrained light bloom. The existing Settings toggle remains available. UI stays on its separate readable layer and the Escape menu layout is unchanged.
+- Added editable procedural materials for worn bus paint, olive vinyl, rubber and stained ceiling panels. Subtle rain marks and grime collect on the glass, with a clearer windshield.
+- Damp road materials vary roughness across puddles. Bounded warm glints follow the bus headlights and switch off in daylight; these are stylized highlights, not scene reflections.
+- Added selective local shadows to the cabin, shelter and three hallway lights. Reduced harsh hallway illumination and coarse surface noise while preserving the journey's gradual cooling and dawn transition.
+- Added a native capture pass covering the forest stop, cabin, window, house, diner, blood, pause menu and dawn. Verified shader compilation with the pinned Compatibility renderer and kept the prior gameplay regression suite.
+
 ## 0.11.0-beta.1
 - Includes the separately verified atmosphere pass: the cabin gradually loses warmth, rear seats dim, distant forest fades into mist and slow drone troughs leave space for footsteps. Pause, notes, town and dawn retain their lighting behavior.
 - Grounded, swept corpse collision follows the player's travelled path through furniture and doorways. Looking around no longer orbits the body; E releases it, and obstructions release the tether instead of pulling through walls.
