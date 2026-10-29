@@ -1,9 +1,14 @@
 # Changelog
 
-## Unreleased atmosphere pass
-- The bus journey starts with warm cabin lights, then gradually cools and dims the rear seats as the route enters deeper forest. Moonlight and mist retain nearby readability while reducing distant detail.
-- Slow drone troughs leave room for engine noise and individual encounters. Atmosphere freezes during pause and reading, and yields to town and dawn lighting.
-- Verified with pinned Godot import/story checks and dedicated headless and Windows rendered scene checks. This development pass does not include a new packaged release.
+## 0.11.0-beta.1
+- Includes the separately verified atmosphere pass: the cabin gradually loses warmth, rear seats dim, distant forest fades into mist and slow drone troughs leave space for footsteps. Pause, notes, town and dawn retain their lighting behavior.
+- Grounded, swept corpse collision follows the player's travelled path through furniture and doorways. Looking around no longer orbits the body; E releases it, and obstructions release the tether instead of pulling through walls.
+- The bus-route house attacker now retains a dark suit and red tie while standing, fallen and being buried.
+- Wardrobe daylight no longer teleports the player out. E opens the doors and steps into the room after the countdown. Leaving early plays a paced first-person grab, fall and hell-hound sequence with rising red vision before a clean retry screen.
+- The footpath route has a forest-boundary hound encounter if the player leaves town before completing the mirror. Shop interiors and the town remain safe, and the completed Forestry Way route is exempt.
+- The collapse reveal uses a full-size world-space body resting on the path with normal depth, replacing the floating camera attachment.
+- Added a firewatcher introduction and unified brighter red pools, prints, smears and sign drips. Added an original synthesized positional hound cue.
+- Added physical drag, collision, manual-exit, cutscene, pause, retry, town-safety and body-placement regression checks.
 
 ## 0.10.0-beta.1
 - Rebuilt the Night Owl Diner interior with red vinyl booths, cream tables, counter stools, window blinds and warm ceiling fixtures. The main aisle and counter note remain accessible.

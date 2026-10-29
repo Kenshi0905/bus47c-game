@@ -26,6 +26,7 @@ var tie_halo: ShaderMaterial
 var start_yaw := 0.0
 var start_pitch := 0.0
 var start_height := 1.57
+var fall_origin := Vector3.ZERO
 
 func setup(g,a) -> void:
 	game=g
@@ -51,20 +52,17 @@ func setup(g,a) -> void:
 	blur_material.shader=preload("res://assets/ui/failing_vision.gdshader")
 	blur.material=blur_material
 	own_body=load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
-	game.player.camera.add_child(own_body)
-	own_body.position=Vector3(0,-.43,-1.56)
-	own_body.rotation=Vector3(PI/2,0,0)
-	own_body.scale=Vector3(.65,.65,.65)
+	add_child(own_body)
+	own_body.name="GroundedPlayerBody"
 	for part in own_body.find_children("*","MeshInstance3D",true,false):
 		var key := String(part.name).to_lower()
 		if "head" in key or "neck" in key or "ear" in key or "hair" in key or game.passengers.facial(key):part.hide()
 	game.add_tie_glow(own_body)
-	# The fallen player's body is a first-person viewmodel, above the ground pass.
+	# World-space body: depth-tested and resting on the path, not on the lens.
 	for part in own_body.find_children("*","MeshInstance3D",true,false):
 		var material: StandardMaterial3D=part.get_active_material(0).duplicate()
-		material.no_depth_test=true
-		material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.render_priority=1 if "tie" in String(part.name) else 0
+		material.no_depth_test=false
+		material.render_priority=0
 		var key := String(part.name)
 		if "torso" in key or "sleeve" in key or "trouser" in key or "pelvis" in key:
 			material.vertex_color_use_as_albedo=false
@@ -119,6 +117,8 @@ func triangle(parent: Node3D, size: float, z: float, color: String) -> void:
 func stroke(parent: Node3D, a: Vector3, b: Vector3, width: float, color: String) -> void:
 	var mesh: MeshInstance3D=game.block(parent,(a+b)*.5,Vector3(width,a.distance_to(b),.018),color)
 	mesh.rotation.z=-atan2(b.x-a.x,b.y-a.y)
+	if color in ["98271d","731911","bb4930","7e2118","a82118","771411"]:
+		mesh.material_override=preload("res://scripts/blood_palette.gd").material()
 
 func build_hazard() -> void:
 	hazard=Node3D.new()
@@ -230,7 +230,13 @@ func start_fall(kind: String) -> void:
 		after.pursuer.show()
 		after.pursuer.global_position=game.player.global_position+game.player.global_basis.z*1.5
 		game.play_sound("impact")
-	else:own_body.show()
+	else:
+		fall_origin=game.player.global_position
+		var forward := Basis(Vector3.UP,start_yaw)*Vector3.FORWARD
+		own_body.global_basis=Basis(Vector3.UP,start_yaw)*Basis(Vector3.RIGHT,PI/2)
+		own_body.global_position=fall_origin+forward*1.93
+		own_body.global_position.y=.24
+		own_body.show()
 
 func update(delta: float) -> void:
 	observe_hazard()
@@ -273,8 +279,9 @@ func update_cutscene() -> void:
 			blur.hide()
 			after.fail("You strayed too far from the bus.")
 	elif after.phase=="forestry_fall":
-		camera.position.y=lerpf(start_height,.3,smoothstep(.5,2.4,t))
-		camera.rotation=Vector3(lerpf(start_pitch,-1.0,smoothstep(.3,3,t)),0,.25*sin(minf(t,3)*.45))
+		camera.position.y=lerpf(start_height,.43,smoothstep(.5,2.4,t))
+		camera.rotation=Vector3(lerpf(start_pitch,-.24,smoothstep(.3,3,t)),0,.07*sin(minf(t,3)*.45))
+		game.player.rotation.y=start_yaw
 		tie_light.light_energy=smoothstep(2,5,t)*(1.1+sin(t*4)*.25)
 		tie_halo.set_shader_parameter("strength",smoothstep(2,5,t)*(.6+sin(t*4)*.08))
 		var tie: MeshInstance3D=own_body.find_child("red_tie*",true,false)
@@ -316,6 +323,6 @@ func add_footprint(at: Vector3, yaw: float) -> void:
 	step.position=Vector3(at.x,.085,at.z)+Basis(Vector3.UP,yaw)*Vector3(print_side*.15,0,0)
 	step.rotation.y=yaw
 	print_side=-print_side
-	game.block(step,Vector3(0,0,-.1),Vector3(.16,.012,.23),"8f2720")
-	game.block(step,Vector3(0,0,.09),Vector3(.13,.012,.11),"8f2720")
+	for patch in [game.block(step,Vector3(0,0,-.1),Vector3(.16,.012,.23),"bd241e"),game.block(step,Vector3(0,0,.09),Vector3(.13,.012,.11),"bd241e")]:
+		patch.material_override=preload("res://scripts/blood_palette.gd").material()
 	if prints.get_child_count()>220:prints.get_child(0).free()

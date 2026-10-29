@@ -40,7 +40,7 @@ func on_phase(phase: String) -> void:
 	else:
 		bed.stop()
 		tension.stop()
-	if phase in ["jumpscare","backstab"]:
+	if phase in ["jumpscare","backstab","closet_attack","forest_hounds"]:
 		event.stream=preload("res://assets/audio/pack_backstab.wav")
 		event.volume_db=-8
 		event.play()

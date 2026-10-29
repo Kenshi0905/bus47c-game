@@ -1,5 +1,5 @@
 BUS 47C
-Windows beta 0.10.0-beta.1
+Windows beta 0.11.0-beta.1
 
 PLAY
 Extract the whole ZIP into a folder, then double-click Bus47C.exe.
@@ -7,16 +7,16 @@ Keep Bus47C.pck beside Bus47C.exe. No Godot installation is needed.
 Choose New Journey to experience the complete current sequence.
 
 NEW IN THIS BETA
-The Night Owl Diner has red vinyl booths, cream tables, lunch-counter stools,
-blinds and warm ceiling lights. The selected distressed title and matching
-Share Tech Mono typography now carry through menus, notes and world labels.
-Inspect town residents with E for reactions and clues, without name labels.
-Shift and look around inside the wardrobe. Hold right mouse to peek;
-the countdown shows when daylight arrives. Leaving early remains dangerous.
-Repairing the engine, burial and making coffee have timed progress feedback.
-The newspaper has columns and in-game photographs. Both routes conclude with
-a first-person closing scene, audio and credits before the results menu.
-Completed journal tasks are crossed out; an abandoned route is labelled.
+Bodies stay grounded, collide with walls and follow the route you walk.
+Looking around no longer swings a dragged body. E releases it.
+The bus-route attacker wears his dark suit and red tie, including after death.
+Wait for the wardrobe countdown and birdsong, then press E to step out.
+Leaving early triggers a first-person attack with hounds and a rising red haze.
+On the footpath route, the town is safe but entering the surrounding forest
+before finishing the mirror scene triggers a separate hound encounter.
+The Forestry Way body reveal uses a full-size body resting on the path.
+The opening establishes your firewatch job. Blood stays visibly red at night.
+All death sequences finish at a visible Try Again menu.
 
 CONTROLS
 WASD: walk or shift position while hiding
@@ -36,7 +36,7 @@ The mirror is a staged portrait. Defense is a close-range interaction.
 Saves are local. Timers freeze while paused or reading notes.
 Windows x86_64 and OpenGL 3.3 are required for this package.
 Other graphical platforms and broader hardware support remain unverified.
-Contains blood, disturbing imagery and jumpscares.
+Contains graphic stylized violence, blood and jumpscares.
 
 Report a bug with the version, route, location and steps to reproduce it:
 https://github.com/Kenshi0905/bus47c-game/issues

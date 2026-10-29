@@ -2,8 +2,10 @@ $ErrorActionPreference='Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 $godot='./tools/godot/Godot_v4.7.2-stable_win64_console.exe'
 if(-not(Test-Path $godot)){throw 'Run tools/setup.ps1 first'}
-New-Item -ItemType Directory -Force work/appdata | Out-Null
-$env:APPDATA=(Resolve-Path work/appdata).Path
+# Separate concurrent check runs from one another and from the real save.
+$testProfile=Join-Path (Get-Location).Path ('work/test-appdata-'+$PID)
+New-Item -ItemType Directory -Force -Path $testProfile | Out-Null
+$env:APPDATA=$testProfile
 function Run-Check([string[]]$GodotArgs){
  $output=& $godot @GodotArgs 2>&1
  $code=$LASTEXITCODE

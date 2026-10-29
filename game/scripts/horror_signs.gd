@@ -61,8 +61,9 @@ func add_board(parent: Node3D, at: Vector3, copy: String, width: float=3.7, heig
 	for i in range(6):
 		var x := (-.43+float(i)*.17)*width
 		var streak_length := height*(.25+float((i+id)%4)*.19)
-		game.block(root,Vector3(x,2+height*.5-streak_length*.5,.096),Vector3(.035+float(i%2)*.025,streak_length,.012),"911c13")
+		game.block(root,Vector3(x,2+height*.5-streak_length*.5,.096),Vector3(.035+float(i%2)*.025,streak_length,.012),"911c13").material_override=preload("res://scripts/blood_palette.gd").material()
 		var drop: MeshInstance3D=game.block(root,Vector3(x,2-height*.5,.09),Vector3(.045,.14,.035),"a12819")
+		drop.material_override=preload("res://scripts/blood_palette.gd").material()
 		drops.append({"node":drop,"x":x,"bottom":2-height*.5,"phase":float(i)*.47+float(id)*.13})
 	game.light(root,Vector3(0,2,1.2),Color("b7ab8b"),1.1,4.8)
 	return root

@@ -11,6 +11,6 @@ void fragment() {
 	c+=texture(screen_tex,SCREEN_UV+vec2(0.0,step_uv.y)).rgb*.2;
 	c+=texture(screen_tex,SCREEN_UV-vec2(0.0,step_uv.y)).rgb*.2;
 	float edge=smoothstep(.25,.75,length(UV-.5));
-	c=mix(c,vec3(.19,.006,.008),edge*hurt*.7);
+	c=mix(c,vec3(.48,.014,.009),edge*hurt*.7);
 	COLOR=vec4(c*(1.0-darkness),1.0);
 }

@@ -154,8 +154,7 @@ func build_corpse(index: int) -> void:
 			mesh.set_normal(Vector3.UP)
 			mesh.add_vertex(v)
 	pool.mesh=mesh.commit()
-	var blood := StandardMaterial3D.new()
-	blood.albedo_color=Color("791c19")
+	var blood: StandardMaterial3D=preload("res://scripts/blood_palette.gd").material()
 	blood.roughness=.25
 	blood.cull_mode=BaseMaterial3D.CULL_DISABLED
 	pool.material_override=blood

@@ -5,6 +5,8 @@ const Story = preload("res://scripts/story.gd")
 const HOUSE := Vector3(120,0,-775)
 const SAFE_PHASES := ["forest","fork","town","burial","closet","dawn","loop","escape"]
 const District=preload("res://scripts/town_district.gd")
+var corpse_physics: CharacterBody3D
+var encounters: Node3D
 var events: Node3D
 var town_horror: Node3D
 var arrival_prints: Node3D
@@ -101,6 +103,12 @@ func setup(owner_game) -> void:
 	presentation=preload("res://scripts/story_presentation.gd").new()
 	add_child(presentation)
 	presentation.setup(game,self)
+	corpse_physics=preload("res://scripts/body_drag.gd").new()
+	add_child(corpse_physics)
+	corpse_physics.setup(game,self)
+	encounters=preload("res://scripts/night_encounters.gd").new()
+	add_child(encounters)
+	encounters.setup(game,self)
 	reset()
 
 func hotspot(id: String, parent: Node3D, local: Vector3, title: String, radius: float=2.4) -> void:
@@ -183,10 +191,7 @@ func build_town() -> void:
 		for side in [-1,1]:
 			var footprint: MeshInstance3D=game.block(arrival_prints,Vector3(120+side*.2,.062,z+side*.35),Vector3(.22,.017,.42),"97523c")
 			footprint.rotation.y=side*.12
-			var trace: StandardMaterial3D=game.mat("97523c").duplicate()
-			trace.emission_enabled=true
-			trace.emission=Color("452219")
-			trace.emission_energy_multiplier=.22
+			var trace: StandardMaterial3D=preload("res://scripts/blood_palette.gd").material()
 			footprint.material_override=trace
 	var home := Node3D.new()
 	town.add_child(home)
@@ -229,11 +234,12 @@ func build_town() -> void:
 	opponent=Node3D.new()
 	town.add_child(opponent)
 	double_model=load("res://assets/characters/01_grinning_clerk.gltf").instantiate()
-	intruder_model=load("res://assets/characters/03_long_neck_worker.gltf").instantiate()
+	intruder_model=load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
 	for part in intruder_model.find_children("*","MeshInstance3D",true,false):
 		if game.passengers.facial(String(part.name).to_lower()):part.hide()
 	opponent.add_child(double_model)
 	opponent.add_child(intruder_model)
+	game.add_tie_glow(intruder_model)
 	game.block(opponent,Vector3(.31,.83,-.16),Vector3(.045,.3,.06),"a2ada2")
 	hotspot("defend",opponent,Vector3(0,1.2,0),"Defend yourself",2.5)
 	hotspot("body",opponent,Vector3(0,.3,0),"Drag the body",2.6)
@@ -317,6 +323,8 @@ func daylight(enabled: bool) -> void:
 	game.moon_light.light_energy=.8 if enabled else .14
 
 func reset() -> void:
+	if is_instance_valid(encounters):encounters.reset()
+	if is_instance_valid(corpse_physics):corpse_physics.reset()
 	if is_instance_valid(presentation):presentation.reset()
 	game.player.confined=false
 	game.player.camera.position.z=0
@@ -503,7 +511,7 @@ func update_target() -> void:
 	game.prompt.text=""
 	if phase=="closet":
 		game.current_target="leave_closet"
-		game.prompt.text="RMB   Peek through the door     E   Leave hiding"
+		game.prompt.text="E   Step out into the morning" if encounters.daylight_ready else "RMB   Peek through the door     E   Leave hiding"
 		return
 	var best := .65
 	for id in allowed():
@@ -535,7 +543,7 @@ func update_target() -> void:
 
 func interact(id: String) -> void:
 	if phase=="closet" and id=="leave_closet":
-		fail("You opened the door before morning.")
+		encounters.begin("closet_exit" if encounters.daylight_ready else "closet_attack")
 		return
 	if id not in allowed():return
 	if id.begins_with("resident_"):
@@ -621,6 +629,7 @@ func interact(id: String) -> void:
 		game.set_objective("E near the body to drag it. Take it through the back door to the lantern.")
 	elif id=="body":
 		dragging=not dragging
+		if dragging:corpse_physics.begin()
 		game.player.movement_scale=.65 if dragging else 1.0
 		game.set_objective("Drag the body to the lantern behind the house. E at the grave to bury it." if dragging else "The body is on the ground.")
 	elif id=="grave":
@@ -639,6 +648,7 @@ func interact(id: String) -> void:
 		game.player.hiding_bounds=AABB(HOUSE+Vector3(2.98,0,-3.34),Vector3(1.04,2,.39))
 		for door in wardrobe_doors:door.rotation.y=0
 		closet_beat=0
+		encounters.daylight_ready=false
 		set_phase("closet","Stay inside. Wait for daylight and birdsong.")
 	elif id=="coffee":
 		game.player.enabled=false
@@ -664,6 +674,8 @@ func update(delta: float) -> void:
 	state_time+=delta
 	presentation.update()
 	if phase in ["epilogue","ending"]:return
+	encounters.update(delta)
+	if phase in encounters.PHASES:return
 	events.update(delta)
 	if phase in ["backstab","forestry_walk","forestry_fall","waking"]:return
 	mirror_wait=maxf(0,mirror_wait-delta)
@@ -753,10 +765,7 @@ func update(delta: float) -> void:
 		if burial_remaining<=0:
 			fail("It woke before the grave was closed.")
 			return
-		if dragging:
-			var target: Vector3=game.player.global_position+game.player.global_basis.z*1.35
-			target.y=.18
-			lay_body(body_center().move_toward(target,delta*4.5))
+		if dragging:corpse_physics.update_drag(delta)
 		if phase=="burying":opponent.position.y=.18-state_time*.12
 		if phase=="burying" and state_time>=8:
 			opponent.hide()
@@ -766,7 +775,7 @@ func update(delta: float) -> void:
 			save_at("closet")
 	elif phase=="closet":
 		var remaining := maxi(0,ceili(CLOSET_SECONDS-state_time))
-		status.text="DAYLIGHT IN   %d:%02d" % [remaining/60,remaining%60]
+		status.text="DAYLIGHT   E TO STEP OUT" if encounters.daylight_ready else "DAYLIGHT IN   %d:%02d" % [remaining/60,remaining%60]
 		for i in range(wardrobe_doors.size()):
 			var open := (-.30 if i==0 else .30) if Input.is_action_pressed("zoom") else 0.0
 			wardrobe_doors[i].rotation.y=lerp_angle(wardrobe_doors[i].rotation.y,open,1-exp(-delta*5))
@@ -775,7 +784,11 @@ func update(delta: float) -> void:
 			game.play_sound("knock" if closet_beat!=1 else "cry")
 			game.describe_sound(["Knocking at the wardrobe","A distant cry outside","Footsteps stop outside the door"][closet_beat])
 			closet_beat+=1
-		if state_time>=CLOSET_SECONDS:start_dawn()
+		if state_time>=CLOSET_SECONDS and not encounters.daylight_ready:
+			encounters.daylight_ready=true
+			daylight(true)
+			game.play_sound("birds")
+			game.set_objective("Morning. Press E to step out of the wardrobe.",true)
 	elif phase=="brewing":
 		if state_time>=4:
 			coffee=true
@@ -918,7 +931,7 @@ func place_town(keep_position: bool=false) -> void:
 	double_model.visible=branch=="walk"
 	intruder_model.visible=branch=="bus"
 	opponent.position=HOUSE+Vector3(0,.12,-1)
-	opponent.rotation=Vector3.ZERO
+	opponent.rotation=Vector3(0,PI,0)
 	knife=false
 	ground_knife.show()
 	attack_ready_time=0
@@ -958,9 +971,11 @@ func document_closed(kind: String) -> void:
 		presentation.start_ending(kind)
 
 func controls_locked() -> bool:
-	return active and phase in ["burying","repairing","brewing","epilogue","transit","jumpscare","backstab","forestry_fall","waking","dead","ending"]
+	return active and phase in ["burying","repairing","brewing","epilogue","transit","jumpscare","backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit","dead","ending"]
 
 func fail(reason: String) -> void:
+	encounters.reset()
+	dragging=false
 	presentation.reset()
 	game.player.confined=false
 	events.blur.hide()
@@ -1002,8 +1017,8 @@ func complete(title: String, copy: String) -> void:
 func body_center() -> Vector3:
 	return opponent.to_global(Vector3(0,1.0,0))
 
-func lay_body(center: Vector3) -> void:
-	opponent.rotation=Vector3(-PI/2,0,0)
+func lay_body(center: Vector3, yaw: float=0.0) -> void:
+	opponent.basis=Basis(Vector3.UP,yaw)*Basis(Vector3.RIGHT,PI/2)
 	opponent.global_position=center-opponent.global_basis*Vector3(0,1.0,0)
 	spots.body.local=Vector3(0,1.0,0)
 

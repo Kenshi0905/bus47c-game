@@ -17,6 +17,7 @@ void fragment() {
 	float length=.25+streak*.75;
 	float blood=line*step(UV.y,length)*step(.47,streak);
 	blood=max(blood,(1.0-smoothstep(.02,.12,UV.y))*.8);
-	ALBEDO=mix(color,vec3(.23,.016,.012),blood);
+	ALBEDO=mix(color,vec3(.58,.025,.018),blood);
+	EMISSION=vec3(.32,.009,.004)*blood*.35;
 	ROUGHNESS=mix(.95,.32,blood);
 }

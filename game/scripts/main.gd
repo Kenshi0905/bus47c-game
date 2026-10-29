@@ -113,6 +113,8 @@ func _ready() -> void:
 	if "--capture09" in OS.get_cmdline_user_args():call_deferred("narrative_capture")
 	if "--checks10" in OS.get_cmdline_user_args():call_deferred("polish_test")
 	if "--capture10" in OS.get_cmdline_user_args():call_deferred("polish_capture")
+	if "--checks11" in OS.get_cmdline_user_args():call_deferred("encounter_test")
+	if "--capture11" in OS.get_cmdline_user_args():call_deferred("encounter_capture")
 
 func _setup_inputs() -> void:
 	var keys := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "sprint": KEY_SHIFT, "interact": KEY_E, "pause_game": KEY_ESCAPE, "stand": KEY_SPACE, "notes": KEY_TAB}
@@ -559,7 +561,7 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   v0.10.0-beta.1", 14, Color("9d9f94"))
+	var version := label("BUS 47C   v0.11.0-beta.1", 14, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(982, 666)
@@ -622,7 +624,7 @@ func show_menu(is_pause: bool) -> void:
 	menu_is_pause = is_pause
 	menu_page = "title"
 	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = true
-	for sound in [aftermath.trail_audio,watcher_director.departure.sound,aftermath.presentation.end_sound]:
+	for sound in [aftermath.trail_audio,watcher_director.departure.sound,aftermath.presentation.end_sound,aftermath.encounters.sound]:
 		if is_instance_valid(sound):sound.stream_paused=true
 	player.enabled = false
 	player.reset_zoom()
@@ -674,7 +676,7 @@ func resume_game() -> void:
 	paused = false
 	menu_ambience.stop()
 	for sound in [ambience, engine, drone, sfx, footsteps]: sound.stream_paused = false
-	for sound in [aftermath.trail_audio,watcher_director.departure.sound,aftermath.presentation.end_sound]:
+	for sound in [aftermath.trail_audio,watcher_director.departure.sound,aftermath.presentation.end_sound,aftermath.encounters.sound]:
 		if is_instance_valid(sound):sound.stream_paused=false
 	menu.hide()
 	menu_chrome.hide()
@@ -723,6 +725,8 @@ func start_game(checkpoint: int, saved_seed: int = -1) -> void:
 	drone.stop()
 	resume_game()
 	apply_stage(false)
+	if checkpoint==Story.Stage.STOP and saved_seed<0:
+		say("Another night as Loomesville's firewatcher. Shift is over. Time to get home.",7,true)
 	save_checkpoint()
 
 
@@ -921,7 +925,7 @@ func apply_stage(save: bool = true) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if aftermath.active and aftermath.phase in ["dead","ending","epilogue","transit","jumpscare","backstab","forestry_fall","waking"]:return
+	if aftermath.active and aftermath.phase in ["dead","ending","epilogue","transit","jumpscare","backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit"]:return
 	if running and not paused and event.is_action_pressed("notes"):
 		if modal:close_document()
 		else:show_document("journal")
@@ -977,7 +981,7 @@ func _process(delta: float) -> void:
 		if caption_time<=0:subtitle_frame.hide()
 	controls_hint.text="SPACE   Stand up     RMB   Zoom     TAB   Notes" if seated_index>=0 else "RMB   Zoom     TAB   Notes"
 	if aftermath.active and aftermath.phase=="closet":controls_hint.text="WASD   Shift position     MOUSE   Look     RMB   Peek"
-	var cinematic: bool=aftermath.active and aftermath.phase in ["backstab","forestry_fall","waking","epilogue"]
+	var cinematic: bool=aftermath.active and aftermath.phase in ["backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit","epilogue"]
 	controls_hint.visible=not cinematic
 	reticle.visible=not cinematic
 	if cinematic:
@@ -1256,6 +1260,7 @@ func smoke_test() -> void:
 	assert(await preload("res://tests/beta_checks.gd").run(self))
 	assert(await preload("res://tests/narrative_checks.gd").run(self))
 	assert(await preload("res://tests/polish_checks.gd").run(self))
+	assert(await preload("res://tests/encounter_checks.gd").run(self))
 	print("PASS: six stops, moving deer, slow zoom-only watcher, seats, doors, forest failures/recovery, both routes and both endings")
 	quit_cleanly()
 
@@ -1273,7 +1278,7 @@ func capture_frame(name_text: String) -> void:
 	if folder.is_empty():folder="res://../docs" if OS.has_feature("editor") else "user://captures"
 	folder=ProjectSettings.globalize_path(folder).simplify_path()
 	DirAccess.make_dir_recursive_absolute(folder)
-	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.10.0-beta.1-"+name_text+".png"))
+	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.11.0-beta.1-"+name_text+".png"))
 
 func capture_preview() -> void:
 	get_tree().create_timer(90).timeout.connect(func():get_tree().quit(2))
@@ -1708,7 +1713,7 @@ func afternarrative_visibility() -> void:
 		aftermath.events.arrow_copy.hide()
 
 func test_run() -> bool:
-	for flag in ["--smoke","--capture","--checks09","--capture09","--checks10","--capture10"]:
+	for flag in ["--smoke","--capture","--checks09","--capture09","--checks10","--capture10","--checks11","--capture11"]:
 		if flag in OS.get_cmdline_user_args():return true
 	return false
 
@@ -1729,3 +1734,12 @@ func polish_test() -> void:
 func polish_capture() -> void:
 	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
 	await preload("res://tests/polish_capture.gd").run(self)
+
+func encounter_test() -> void:
+	get_tree().create_timer(180).timeout.connect(func():get_tree().quit(2))
+	assert(await preload("res://tests/encounter_checks.gd").run(self))
+	quit_cleanly()
+
+func encounter_capture() -> void:
+	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
+	await preload("res://tests/encounter_capture.gd").run(self)

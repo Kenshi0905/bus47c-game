@@ -31,6 +31,7 @@ func setup(g,a) -> void:
 			pool(shop,Vector3(-4.7+float(i)*2.1,.074,-.7+sin(i*7)*2.8),Vector2(.55+float(i%2)*.35,.8))
 		for i in range(9):
 			var streak: MeshInstance3D=game.block(shop,Vector3(-3.5+i*.8,.6+sin(i)*.2,-2.585),Vector3(.045,.4+float(i%3)*.1,.012),"70201a")
+			streak.material_override=preload("res://scripts/blood_palette.gd").material()
 			streak.rotation.z=sin(i)*.12
 		var staff_index: int=["diner","mart","coffee_shop","pizza"].find(id)
 		var card: Node3D=after.district.poster(shop,Vector3(4.8,2.0,-5.38),Vector2(1.25,1.1),STAFF[staff_index].replace("   ","\n"),"b8ac89","403d30")
@@ -97,7 +98,7 @@ func pool(parent: Node3D, at: Vector3, size: Vector2) -> void:
 			tool.add_vertex(vertex)
 	var node := MeshInstance3D.new()
 	node.mesh=tool.commit()
-	var material: StandardMaterial3D=game.mat("731a18").duplicate()
+	var material: StandardMaterial3D=preload("res://scripts/blood_palette.gd").material()
 	material.roughness=.28
 	material.cull_mode=BaseMaterial3D.CULL_DISABLED
 	node.material_override=material
