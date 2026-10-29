@@ -45,10 +45,12 @@ static func run(g) -> bool:
 	a.place_player(at,Route.WALK_PATH[2]+Vector3.UP)
 	a.pursuit_grace=999
 	a.state_time=1
+	g.player.walking_now=true
+	g.player.velocity=Vector3(0,0,-2.8)
 	a.pursuit(.01,Route.WALK_PATH[2])
 	var far: float=a.pursuer.position.distance_to(g.player.position)
 	a.state_time=36
-	a.pursuit(.01,Route.WALK_PATH[2])
+	a.pursuit(30,Route.WALK_PATH[2])
 	assert(a.pursuer.position.distance_to(g.player.position)<far-2 and a.trail_audio.volume_db>-7)
 	# Reproduce the side detour to the mart with an armed forest encounter.
 	a.look_back_armed=true
@@ -88,7 +90,7 @@ static func run(g) -> bool:
 	a.fail("Audio recovery test")
 	g.audio_story.update(.1)
 	assert(g.audio_story.event.playing and not g.audio_story.event.stream_paused)
-	assert(g.audio_story.event.stream.resource_path.ends_with("beta_death.wav") and not g.audio_story.bed.playing)
+	assert(g.audio_story.event.stream.resource_path.ends_with("pack_death.wav") and not g.audio_story.bed.playing)
 	g.start_game(0)
 	assert(not g.audio_story.event.playing and not g.audio_story.bed.playing)
 	print("PASS: five actual parts, repair lock and save recovery, optional unrepaired footpath, closer pursuit audio, safe town side detour, mirror activation, Forestry Way marker and crossed-out notes")

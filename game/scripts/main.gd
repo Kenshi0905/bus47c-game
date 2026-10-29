@@ -53,6 +53,7 @@ var objective_persistent := false
 var objective_panel: PanelContainer
 var subtitle_frame: PanelContainer
 var controls_hint: Label
+var reticle: Label
 var modal_kind := ""
 var sound_captions := false
 var thought_subtitles := true
@@ -107,6 +108,8 @@ func _ready() -> void:
 	show_menu(false)
 	if "--smoke" in OS.get_cmdline_user_args(): call_deferred("smoke_test")
 	if "--capture" in OS.get_cmdline_user_args(): call_deferred("capture_preview")
+	if "--checks09" in OS.get_cmdline_user_args():call_deferred("narrative_test")
+	if "--capture09" in OS.get_cmdline_user_args():call_deferred("narrative_capture")
 
 func _setup_inputs() -> void:
 	var keys := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "sprint": KEY_SHIFT, "interact": KEY_E, "pause_game": KEY_ESCAPE, "stand": KEY_SPACE, "notes": KEY_TAB}
@@ -513,7 +516,7 @@ func _build_ui() -> void:
 	prompt.position = Vector2(360,522)
 	prompt.size = Vector2(560,35)
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var reticle := label("·",26,Color("d5cfb5"))
+	reticle = label("·",26,Color("d5cfb5"))
 	hud.add_child(reticle)
 	reticle.position = Vector2(636,342)
 	subtitle_frame = PanelContainer.new()
@@ -548,7 +551,7 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   v0.8.0-beta.1", 16, Color("9d9f94"))
+	var version := label("BUS 47C   v0.9.0-beta.1", 16, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(1070, 666)
@@ -650,7 +653,7 @@ func show_information(page: String, is_pause: bool) -> void:
 	menu_spacer(12)
 	var copy := "WASD   Move\nMOUSE   Look\nRIGHT MOUSE   Hold to zoom\nE   Interact and sit\nLEFT MOUSE   Defend with knife\nSPACE   Stand up\nTAB   Shift notes\nSHIFT   Walk faster\nESC   Pause or back\n\nRead the note at the shelter.\nWait for the bus to stop.\nWalk through its open doors.\n\nInspect the empty driver's seat,\nthen the dashboard clock.\nWatch the road. Watch the windows."
 	if page == "credits":
-		copy = "BUS 47C\nStory and direction: Ashmit Avash\n\nA game built in Godot\nMenu design: Canva and original vectors\nFont: Bebas Neue, SIL OFL\n\nFootstep references\nEffecism and Kerma T.C.\nEdited for this private beta.\n\nOriginal beta sound design\nMore lore is in development."
+		copy = "BUS 47C\nStory and direction: Ashmit Avash\n\nA game built in Godot\nMenu design: Canva and original vectors\nFont: Bebas Neue, SIL OFL\n\nFootstep references\nEffecism and Kerma T.C.\nEdited for this private beta.\n\nSound cues: Game Dev Tools HQ\nHorror Bundle excerpts\nOriginal additional sound design\nMore lore is in development."
 	var body := label(copy, 18, Color("bebfb5"))
 	menu_box.add_child(body)
 	menu_spacer(18)
@@ -670,11 +673,11 @@ func resume_game() -> void:
 	menu_shade.hide()
 	player.camera.make_current()
 	hud.show()
-	player.enabled = not modal and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare"])
+	player.enabled = not modal and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare","backstab","forestry_fall","waking"])
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if modal else Input.MOUSE_MODE_CAPTURED
 
 func start_game(checkpoint: int, saved_seed: int = -1) -> void:
-	trip_seed=saved_seed if saved_seed>=0 else (4707 if "--smoke" in OS.get_cmdline_user_args() or "--capture" in OS.get_cmdline_user_args() else randi()%2147483647)
+	trip_seed=saved_seed if saved_seed>=0 else (4707 if test_run() else randi()%2147483647)
 	audio_story.reset()
 	aftermath.reset()
 	story.restore(checkpoint)
@@ -728,7 +731,7 @@ func continue_game() -> void:
 		aftermath.restore(value.after)
 
 func save_path() -> String:
-	return "user://test-checkpoint.json" if "--smoke" in OS.get_cmdline_user_args() or "--capture" in OS.get_cmdline_user_args() else SAVE
+	return "user://test-checkpoint.json" if test_run() else SAVE
 
 func save_checkpoint() -> void:
 	var path := save_path()
@@ -820,7 +823,7 @@ func close_document() -> void:
 	modal_kind = ""
 	modal_panel.hide()
 	paper_surface.hide()
-	player.enabled = not paused and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare"])
+	player.enabled = not paused and not (aftermath.active and aftermath.phase in ["closet","burying","repairing","transit","jumpscare","backstab","forestry_fall","waking"])
 	hud.visible = not paused
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if was_note and story.interact("note"): apply_stage()
@@ -908,7 +911,7 @@ func apply_stage(save: bool = true) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if aftermath.active and aftermath.phase in ["dead","ending","transit","jumpscare"]:return
+	if aftermath.active and aftermath.phase in ["dead","ending","transit","jumpscare","backstab","forestry_fall","waking"]:return
 	if running and not paused and event.is_action_pressed("notes"):
 		if modal:close_document()
 		else:show_document("journal")
@@ -939,6 +942,9 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	audio_story.update(delta)
+	if not player.walking_now and footsteps.playing:footsteps.stop()
+	if is_instance_valid(aftermath.events):
+		afternarrative_visibility()
 	if not running:update_title_scene(delta)
 	if not running or paused or modal:return
 	signs.update(delta)
@@ -960,6 +966,13 @@ func _process(delta: float) -> void:
 		subtitle_frame.modulate.a=move_toward(subtitle_frame.modulate.a,minf(1,caption_time*3),delta*5)
 		if caption_time<=0:subtitle_frame.hide()
 	controls_hint.text="SPACE   Stand up     RMB   Zoom     TAB   Notes" if seated_index>=0 else "RMB   Zoom     TAB   Notes"
+	var cinematic: bool=aftermath.active and aftermath.phase in ["backstab","forestry_fall","waking"]
+	controls_hint.visible=not cinematic
+	reticle.visible=not cinematic
+	if cinematic:
+		objective_panel.hide()
+		hunger_bar.hide()
+		hunger_text.hide()
 	update_target()
 
 func update_target() -> void:
@@ -1229,6 +1242,7 @@ func smoke_test() -> void:
 	assert(await preload("res://tests/scenario_checks.gd").run(self))
 	assert(await preload("res://tests/district_checks.gd").run(self))
 	assert(await preload("res://tests/beta_checks.gd").run(self))
+	assert(await preload("res://tests/narrative_checks.gd").run(self))
 	print("PASS: six stops, moving deer, slow zoom-only watcher, seats, doors, forest failures/recovery, both routes and both endings")
 	quit_cleanly()
 
@@ -1246,7 +1260,7 @@ func capture_frame(name_text: String) -> void:
 	if folder.is_empty():folder="res://../docs" if OS.has_feature("editor") else "user://captures"
 	folder=ProjectSettings.globalize_path(folder).simplify_path()
 	DirAccess.make_dir_recursive_absolute(folder)
-	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.8.0-beta.1-"+name_text+".png"))
+	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.9.0-beta.1-"+name_text+".png"))
 
 func capture_preview() -> void:
 	get_tree().create_timer(90).timeout.connect(func():get_tree().quit(2))
@@ -1673,3 +1687,23 @@ func update_deer() -> void:
 	if not deer.visible:return
 	deer.rotation=Vector3(0,-PI/2,0)
 	deer.position=Route.point(lerpf(-10,.3,smoothstep(end-5,end-.6,time)),.07+absf(sin(time*14))*.06,-685)
+
+func afternarrative_visibility() -> void:
+	if paused or modal:
+		aftermath.events.blur.hide()
+		aftermath.events.arrow.hide()
+		aftermath.events.arrow_copy.hide()
+
+func test_run() -> bool:
+	for flag in ["--smoke","--capture","--checks09","--capture09"]:
+		if flag in OS.get_cmdline_user_args():return true
+	return false
+
+func narrative_test() -> void:
+	get_tree().create_timer(180).timeout.connect(func():get_tree().quit(2))
+	assert(await preload("res://tests/narrative_checks.gd").run(self))
+	quit_cleanly()
+
+func narrative_capture() -> void:
+	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
+	await preload("res://tests/narrative_capture.gd").run(self)

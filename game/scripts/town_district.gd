@@ -86,7 +86,9 @@ func street() -> void:
 	# The golden path joins the pavement between the western buildings.
 	box(self,Vector3(165,1,-751),Vector3(.2,2,104),"303d31",true,2)
 	box(self,Vector3(77,1,-780),Vector3(.2,2,54),"303d31",true,2)
-	box(self,Vector3(121,1,-807),Vector3(88,2,.2),"303d31",true,2)
+	# Forestry Way has a real opening through the southern fence.
+	box(self,Vector3(91,1,-807),Vector3(28,2,.2),"303d31",true,2)
+	box(self,Vector3(138,1,-807),Vector3(54,2,.2),"303d31",true,2)
 
 func car(at: Vector3, yaw: float, color: String) -> void:
 	var root := Node3D.new()
@@ -122,8 +124,9 @@ func shop(id: String, at: Vector3, yaw: float, title: String, color: String) -> 
 		for dx in [-2.4,0,2.4]:box(root,Vector3(x+dx,1.85,5.53),Vector3(.08,2.3,.08),"a3a38e",true)
 	box(root,Vector3(0,3.12,5.5),Vector3(12,.2,.2),"a3a38e")
 	box(root,Vector3(0,3.7,5.55),Vector3(12.4,1,.3),color)
-	var fascia: Label3D=lettering(root,title,Vector3(0,3.7,5.72),.016 if id=="pizza" or id=="coffee_shop" else .019)
-	if id=="diner":fascia.modulate=Color("e0a050")
+	if id=="coffee_shop":lettering(root,title,Vector3(0,3.7,5.72),.016)
+	elif id=="mart":mart_logo(root)
+	elif id=="pizza":takeaway_logo(root)
 	for y in [3.26,4.12]:game.block(root,Vector3(0,y,5.75),Vector3(12.2,.055,.05),"c58d55" if id=="diner" else "d2b378",false,id!="coffee_shop")
 	game.light(root,Vector3(0,3.6,6),Color("d6b58a"),1.4,9)
 	var door := Node3D.new()
@@ -209,12 +212,12 @@ func shop_front(root: Node3D, id: String) -> void:
 		root.add_child(roof_sign)
 		roof_sign.position=Vector3(0,4.75,4.9)
 		for x in [-2.8,2.8]:box(roof_sign,Vector3(x,-.4,0),Vector3(.09,.8,.09),"3e473b")
-		box(roof_sign,Vector3.ZERO,Vector3(6.8,1.1,.15),"2e3c32")
-		lettering(roof_sign,"DINER",Vector3(-.9,0,.09),.028,"d58e40")
-		var eat_panel := poster(roof_sign,Vector3(2.4,0,.09),Vector2(1.8,.95),"EAT\nHERE","c7b184","232b22")
+		box(roof_sign,Vector3.ZERO,Vector3(10.6,1.1,.15),"2e3c32")
+		lettering(roof_sign,"NIGHT OWL DINER",Vector3(-1.05,0,.09),.017,"d58e40")
+		var eat_panel := poster(roof_sign,Vector3(4.2,0,.09),Vector2(1.8,.95),"EAT\nHERE","c7b184","232b22")
 		for child in eat_panel.get_children():
 			if child is Label3D:child.pixel_size=.0095
-		box(roof_sign,Vector3(3.5,0,0),Vector3(.65,.65,.13),"baa474").rotation.z=PI/4
+		box(roof_sign,Vector3(5.35,0,0),Vector3(.65,.65,.13),"baa474").rotation.z=PI/4
 		game.light(roof_sign,Vector3(-1,0,.8),Color("c8904e"),1.0,5)
 		game.light(roof_sign,Vector3(2.4,0,.75),Color("cdb685"),1.4,3.5)
 		neon_open(root,Vector3(-4.8,2.0,5.65),true)
@@ -463,3 +466,29 @@ func attack_waypoint(from: Vector3, target: Vector3) -> Vector3:
 		var portal := 3.0 if local_target.z>0 else -1.75
 		if absf(local_from.z-portal)>.25:return Vector3(from.x,target.y,after.HOUSE.z+portal)
 	return target
+
+func mart_logo(root: Node3D) -> void:
+	# Original convenience-store identity with bright horizontal colour bands.
+	for band in [[3.46,"318064"],[3.68,"d7b04c"],[3.9,"bc4933"]]:
+		game.block(root,Vector3(0,band[0],5.735),Vector3(12.15,.2,.025),band[1],false,true)
+	box(root,Vector3(0,3.71,5.78),Vector3(3.4,1.15,.08),"dfd8bb")
+	var digits: Label3D=lettering(root,"47",Vector3(-.69,3.72,5.837),.02,"b62e27")
+	digits.font=ThemeDB.fallback_font
+	digits.rotation.z=-.07
+	var nameplate: Label3D=lettering(root,"MART",Vector3(.65,3.7,5.84),.009,"21624b")
+	nameplate.font=ThemeDB.fallback_font
+
+func takeaway_logo(root: Node3D) -> void:
+	box(root,Vector3(0,3.7,5.73),Vector3(12.2,.92,.06),"9b3329")
+	# A custom twin-loop M, built from editable segments rather than a pasted logo.
+	for side in [-1,1]:
+		for i in range(12):
+			var a := PI*float(i)/12
+			var b := PI*float(i+1)/12
+			var pa := Vector3(-3.7+side*.34+cos(a)*.34,3.31+sin(a)*.68,5.79)
+			var pb := Vector3(-3.7+side*.34+cos(b)*.34,3.31+sin(b)*.68,5.79)
+			var bar: MeshInstance3D=game.block(root,(pa+pb)*.5,Vector3(.105,pa.distance_to(pb)+.04,.035),"e6b34b",false,true)
+			bar.rotation.z=-atan2(pb.x-pa.x,pb.y-pa.y)
+	var brand: Label3D=lettering(root,"Morrow's",Vector3(.25,3.85,5.79),.017,"ead5a0")
+	brand.font=ThemeDB.fallback_font
+	lettering(root,"TAKEAWAY",Vector3(.25,3.4,5.79),.007,"ead5a0")

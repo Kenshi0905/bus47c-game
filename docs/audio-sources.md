@@ -9,7 +9,7 @@ The user supplied both clips for editing and use in this private prototype.
 
 Edits: mono 22.05 kHz, individual impacts isolated, low-frequency drift removed, peaks matched, short fades applied. Playback follows distance walked, with small pitch variations. No full reference videos are included in the game or repository.
 
-The downloaded metadata did not supply a reuse licence. These are prototype reference assets; verify permission or replace them before public distribution. Attribution is not itself a licence. Other prototype audio, including the deer-impact effect, is originally synthesized for this project.
+The downloaded metadata did not supply a reuse licence for the two footstep references. These are prototype reference assets; verify permission or replace them before public distribution. Attribution is not itself a licence. The deer-impact effect and the procedural effects listed below were synthesized for this project.
 
 Version 0.6 adds original synthesized `stall`, `rustle`, `mirror`, `dig`, `knock`, `cry`, `pursuit`, `pour` and `birds` effects. These are mono 22.05 kHz procedural recordings, with bounded peaks. The cry is a synthetic tonal effect, not a recording of a person. Pursuit playback uses a positional emitter behind the player.
 
@@ -19,7 +19,16 @@ Version 0.6.2 adds original `stomach.wav` and `watcher_veil.wav` effects, genera
 
 ## Beta sound design
 
-The user supplied [Horror Bundle preview](https://www.youtube.com/watch?v=D7SYOUEQiVE) by Game Dev Tools HQ as a mood reference. Its description advertises Unity Asset Store package 231304 and invites users to listen before buying. Metadata provided no reuse licence. No audio from that commercial preview has been copied into this beta.
+The user supplied [Horror Bundle preview](https://www.youtube.com/watch?v=D7SYOUEQiVE) by Game Dev Tools HQ. Version 0.8.0 used it only as a mood reference. For version 0.9.0 the user explicitly confirmed free use and authorized extracting selected cues. Four edited excerpts are now included on that confirmation. The source metadata did not independently establish a reuse licence; this record documents the user's permission statement without asserting a verified third-party licence. The full reference recording and video are not included in the build or repository.
+
+| File | Source interval | In-game use |
+| --- | --- | --- |
+| `pack_path_mood.wav` | 00:12.000 to 00:36.350 | Low golden-path and Forestry Way atmosphere |
+| `pack_forestry_reveal.wav` | 06:45.000 to 07:00.000 | First-person collapse and red-tie reveal |
+| `pack_backstab.wav` | 30:21.650 to 30:24.000 | Ambush and boundary attack |
+| `pack_death.wav` | 30:55.294 to 30:58.894 | Death and visible retry screen |
+
+`tools/edit_bundle_audio.py` trims the audio-only source, removes DC offset, bounds peaks and applies fades. Files are PCM16 stereo at 44.1 kHz. The 24-second path loop uses a 350 ms overlap; one-shot peaks range from -7.9 to -3.3 dBFS. Runtime mixing ducks the bed for important events and pauses it with the menu. The existing footstep recordings are unchanged.
 
 [How To Design Sounds For Horror Games](https://www.youtube.com/watch?v=TFLWaTG0NTM) by Marshall McGee is a technique reference, not an audio source. Relevant sections: 1:26 sonic space and close detail; 4:17 tension, silence and unexpected outcomes; 6:19 character-specific sound motifs. The tutorial's recordings are not included.
 

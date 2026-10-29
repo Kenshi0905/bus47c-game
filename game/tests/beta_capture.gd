@@ -83,7 +83,7 @@ static func run(g) -> void:
 			if pixel.r+pixel.g+pixel.b>1.2:lit+=1
 	assert(lit>100,"Rendered retry menu must stay visible")
 	var retry: Button=g.get_viewport().gui_get_focus_owner()
-	assert(retry.text=="RETRY CHECKPOINT")
+	assert(retry.text=="TRY AGAIN")
 	retry.pressed.emit()
 	assert(not g.menu.visible and not g.transition_shade.visible)
 	print("Rendered beta: tree dash and peek, viewed-side bodies, four shops, fruit and parts, journal strikes, mirror activation, vase floor, trail marker and visible retry menu")

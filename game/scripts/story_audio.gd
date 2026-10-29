@@ -1,5 +1,5 @@
 extends Node
-## Original cues arranged around space, close footsteps and deliberate quiet.
+## Edited and original cues arranged around footsteps and deliberate quiet.
 var game
 var bed: AudioStreamPlayer
 var tension: AudioStreamPlayer
@@ -13,7 +13,7 @@ func setup(g) -> void:
 	tension=AudioStreamPlayer.new()
 	event=AudioStreamPlayer.new()
 	for player in [bed,tension,event]:add_child(player)
-	var loop: AudioStreamWAV=preload("res://assets/audio/beta_path_bed.wav").duplicate()
+	var loop: AudioStreamWAV=preload("res://assets/audio/pack_path_mood.wav").duplicate()
 	loop.loop_mode=AudioStreamWAV.LOOP_FORWARD
 	# Imported WAV data may be compressed. Loop points use decoded sample frames.
 	loop.loop_end=roundi(loop.get_length()*loop.mix_rate)
@@ -32,7 +32,7 @@ func reset() -> void:
 	game.ambience.volume_db=-15
 
 func on_phase(phase: String) -> void:
-	if phase=="walk":
+	if phase in ["walk","forestry_walk"]:
 		walk_age=0
 		swell_count=0
 		bed.volume_db=-60
@@ -40,12 +40,16 @@ func on_phase(phase: String) -> void:
 	else:
 		bed.stop()
 		tension.stop()
-	if phase=="jumpscare":
-		event.stream=preload("res://assets/audio/beta_scare.wav")
+	if phase in ["jumpscare","backstab"]:
+		event.stream=preload("res://assets/audio/pack_backstab.wav")
 		event.volume_db=-8
 		event.play()
+	elif phase=="forestry_fall":
+		event.stream=preload("res://assets/audio/pack_forestry_reveal.wav")
+		event.volume_db=-5
+		event.play()
 	elif phase=="dead":
-		event.stream=preload("res://assets/audio/beta_death.wav")
+		event.stream=preload("res://assets/audio/pack_death.wav")
 		event.volume_db=-8
 		event.play()
 	elif phase in ["town","loop","ending"]:event.stop()
@@ -60,7 +64,7 @@ func update(delta: float) -> void:
 	# The failure sting resolves over the retry menu; Escape pauses other cues.
 	event.stream_paused=blocked and game.aftermath.phase!="dead"
 	if blocked:return
-	var walking: bool=game.aftermath.active and game.aftermath.phase=="walk" and not game.aftermath.town_entered
+	var walking: bool=game.aftermath.active and game.aftermath.phase in ["walk","forestry_walk"]
 	if walking:
 		walk_age+=delta
 		var quiet := fmod(walk_age,38)>27

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0-beta.1
+- Passenger eyes, nose and mouth drop in staggered pieces, leaving a blank face. Corrected the woods warning grammar.
+- A triangular animal-crossing sign becomes a crossed-out portrait and bleeding BEWARE warning after the player looks away and collects supplies.
+- Pursuit footsteps stop with the player and approach with distance walked. Leaving the breakdown clearing triggers a first-person fall, blurred view of the attacker and visible Try Again menu.
+- A physical Forestry Way continues beyond town with an objective arrow, player-generated bloody footprints, collapse, red-tie body reveal and morning shelter wake-up.
+- Bus-route town arrival begins outside the welcome gate, with recognizable shop-owner corpses and a body heap. Only this route has the earlier footprints. Shops are bloodier on both routes; the coffee counter blackout persists through checkpoint reloads.
+- New striped 47 Mart branding, a custom Morrow's fast-food mark and one upper Night Owl Diner sign. Removed overlapping pavement surfaces at the town junction.
+- Body interactions use the visible body's centre. Dragging trails behind the player; a released body inside the grave marker can be buried.
+- Four edited Horror Bundle excerpts provide path atmosphere, collapse, ambush and death cues following the user's explicit free-use confirmation. Source intervals and permission provenance are recorded with the build.
+- Added physical-route, boundary, hazard, audio-stop, blackout persistence, branch-visibility and burial regression checks, plus native rendered previews. This remains a beta for further lore and polish.
+
 ## 0.8.0-beta.1
 - Slower journey legs and repaired final ride. Corpses appear on the side the player is viewing, fade through distant fog and stay fixed once revealed. Five distinct blood-streaked warnings replace the repeated pairs.
 - The zoomed watcher turns, dashes to a real forest tree, peeks, retreats and leaves a remnant. Departing passengers hold their stare beside the front door.

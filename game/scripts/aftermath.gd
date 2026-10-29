@@ -3,8 +3,12 @@ extends Node3D
 const Route = preload("res://scripts/route.gd")
 const Story = preload("res://scripts/story.gd")
 const HOUSE := Vector3(120,0,-775)
-const SAFE_PHASES := ["forest","fork","town","burial","closet","dawn","loop"]
+const SAFE_PHASES := ["forest","fork","town","burial","closet","dawn","loop","escape"]
 const District=preload("res://scripts/town_district.gd")
+var events: Node3D
+var town_horror: Node3D
+var arrival_prints: Node3D
+var pursuit_distance := 0.0
 var district: Node3D
 var repairs: Node3D
 var town_entered := false
@@ -86,6 +90,12 @@ func setup(owner_game) -> void:
 	game.player.camera.add_child(held_blade)
 	game.block(held_blade,Vector3(.34,-.32,-.65),Vector3(.035,.09,.3),"9eaca4")
 	game.block(held_blade,Vector3(.34,-.32,-.43),Vector3(.055,.1,.17),"584738")
+	events=preload("res://scripts/forest_events.gd").new()
+	add_child(events)
+	events.setup(game,self)
+	town_horror=preload("res://scripts/town_horror.gd").new()
+	town.add_child(town_horror)
+	town_horror.setup(game,self)
 	reset()
 
 func hotspot(id: String, parent: Node3D, local: Vector3, title: String, radius: float=2.4) -> void:
@@ -105,7 +115,7 @@ func lantern(parent: Node3D, at: Vector3, warm: bool=true) -> void:
 func build_forest() -> void:
 	var fork := Route.FOREST_FORK
 	slab(props,point(4,-683),fork,2.2,"383f32")
-	var signpost: Node3D=game.signs.add_board(props,fork+Vector3(2.6,0,2.6),"DON'T GO IN\nTHE WOODS",3.0,1.35,-PI/4,33)
+	var signpost: Node3D=game.signs.add_board(props,fork+Vector3(2.6,0,2.6),"DON'T GO INTO\nTHE WOODS",3.0,1.35,-PI/4,33)
 	var direction: Label3D=game.text3(signpost,"←  LOOMESVILLE FOOTPATH",Vector3(0,1,.09),30,Color("c5b795"))
 	direction.pixel_size=.0035
 	game.block(signpost,Vector3(0,1,0),Vector3(2.4,.28,.1),"46392d")
@@ -159,11 +169,14 @@ func build_forest() -> void:
 func build_town() -> void:
 	game.block(town,Vector3(120,.015,-754),Vector3(9,.03,76),"303432")
 	for x in [114.5,125.5]:
-		game.block(town,Vector3(x,.025,-754),Vector3(2,.05,76),"565b51",true)
+		game.block(town,Vector3(x,.025,-756.85),Vector3(2,.05,70.3),"565b51",true)
 		for z in [-735,-754,-774]:lantern(town,Vector3(x,0,z))
-	for z in range(-742,-770,-2):
+	arrival_prints=Node3D.new()
+	town.add_child(arrival_prints)
+	arrival_prints.name="BusRouteFootprints"
+	for z in range(-735,-770,-2):
 		for side in [-1,1]:
-			var footprint: MeshInstance3D=game.block(town,Vector3(120+side*.2,.045,z+side*.35),Vector3(.22,.017,.42),"97523c")
+			var footprint: MeshInstance3D=game.block(arrival_prints,Vector3(120+side*.2,.062,z+side*.35),Vector3(.22,.017,.42),"97523c")
 			footprint.rotation.y=side*.12
 			var trace: StandardMaterial3D=game.mat("97523c").duplicate()
 			trace.emission_enabled=true
@@ -211,10 +224,11 @@ func build_town() -> void:
 	opponent=Node3D.new()
 	town.add_child(opponent)
 	double_model=load("res://assets/characters/01_grinning_clerk.gltf").instantiate()
-	intruder_model=load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
+	intruder_model=load("res://assets/characters/03_long_neck_worker.gltf").instantiate()
+	for part in intruder_model.find_children("*","MeshInstance3D",true,false):
+		if game.passengers.facial(String(part.name).to_lower()):part.hide()
 	opponent.add_child(double_model)
 	opponent.add_child(intruder_model)
-	game.add_tie_glow(intruder_model)
 	game.block(opponent,Vector3(.31,.83,-.16),Vector3(.045,.3,.06),"a2ada2")
 	hotspot("defend",opponent,Vector3(0,1.2,0),"Defend yourself",2.5)
 	hotspot("body",opponent,Vector3(0,.3,0),"Drag the body",2.6)
@@ -294,6 +308,11 @@ func daylight(enabled: bool) -> void:
 	game.moon_light.light_energy=.8 if enabled else .14
 
 func reset() -> void:
+	if is_instance_valid(events):events.reset()
+	if is_instance_valid(town_horror):town_horror.reset()
+	arrival_prints.hide()
+	pursuit_distance=0
+	sound_clock=0
 	active=false
 	town_entered=false
 	mirror_revealed=false
@@ -337,7 +356,7 @@ func reset() -> void:
 
 func checkpoint_data() -> Dictionary:
 	if not active:return {}
-	return {"phase":checkpoint,"branch":branch,"parts":repairs.taken,"repaired":repairs.repaired}
+	return {"phase":checkpoint,"branch":branch,"parts":repairs.taken,"repaired":repairs.repaired,"coffee_blackout":town_horror.coffee_blackout,"hazard_changed":events.hazard_changed}
 
 func save_at(value: String) -> void:
 	checkpoint=value
@@ -372,11 +391,23 @@ func restore(data: Dictionary) -> void:
 	elif saved=="loop":place_loop()
 	else:
 		place_town()
+		if saved=="escape":
+			knife=true
+			ground_knife.hide()
+			lay_body(HOUSE+Vector3(0,.18,0))
+			mirror_revealed=true
+			mirror_count=3
+			mirror_face.show()
+			for feature in eyes+mouth_parts+[nose]:feature.hide()
+			events.blood_steps=true
+			events.print_origin=game.player.global_position
+			set_phase("escape","Leave the house and follow Forestry Way.")
+			place_player(HOUSE+Vector3(0,.15,3),HOUSE+Vector3(0,1,8))
+			save_at("escape")
 		if saved in ["burial","closet","dawn"]:
 			knife=true
 			ground_knife.hide()
-			opponent.position=HOUSE+Vector3(0,.4,0)
-			opponent.rotation.z=PI/2
+			lay_body(HOUSE+Vector3(0,.18,0))
 			set_phase("burial","Take the shovel. Drag the body to the marked grave behind the house.")
 			place_player(HOUSE+Vector3(0,.15,2),HOUSE+Vector3(0,.5,0))
 			burial_remaining=180
@@ -387,6 +418,13 @@ func restore(data: Dictionary) -> void:
 			if saved=="dawn":start_dawn()
 			save_at(saved)
 
+	if data.get("coffee_blackout",false):town_horror.blackout()
+	if data.get("hazard_changed",false):
+		events.hazard_changed=true
+		events.animal_face.hide()
+		events.human_face.show()
+	if data.get("hazard_changed",false) or data.get("coffee_blackout",false):game.save_checkpoint()
+
 func place_player(at: Vector3, look: Vector3) -> void:
 	game.passengers.release_player_seat(game.seated_index)
 	game.seated_index=-1
@@ -396,6 +434,8 @@ func place_player(at: Vector3, look: Vector3) -> void:
 	game.player.velocity=Vector3.ZERO
 	game.player.rotation=Vector3.ZERO
 	game.player.camera.position.y=1.57
+	game.player.walking_now=false
+	game.player.travelled_last_frame=0
 	var direction: Vector3=look-game.player.camera.global_position
 	game.player.rotation.y=atan2(-direction.x,-direction.z)
 	game.player.camera.rotation=Vector3(clampf(atan2(direction.y,Vector2(direction.x,direction.z).length()),-1.35,1.35),0,0)
@@ -452,13 +492,23 @@ func update_target() -> void:
 	var best := .65
 	for id in allowed():
 		var spot: Dictionary=spots[id]
-		var position: Vector3=spot.parent.to_global(spot.local)
+		var position: Vector3=body_center() if id=="body" else spot.parent.to_global(spot.local)
 		var diff: Vector3=position-game.player.camera.global_position
 		var aim: float=(-game.player.camera.global_basis.z).dot(diff.normalized())
 		if diff.length()<spot.radius and aim>best:
 			best=aim
 			game.current_target=id
 			game.prompt.text=("LMB or E   " if id=="defend" else "E   ")+spot.title
+	if phase=="burial":
+		if grave_ready() and game.player.global_position.distance_to(HOUSE+Vector3(2.2,.15,-9))<3.4:
+			game.current_target="grave"
+			game.prompt.text="E   Bury the body"
+		elif dragging:
+			game.current_target="body"
+			game.prompt.text="E   Release the body"
+		elif game.current_target=="grave":
+			game.current_target=""
+			game.prompt.text="Bring the body into the grave marker."
 	if game.current_target.is_empty() and game.seated_index<0 and game.player.get_parent()==game.bus:
 		for i in range(game.seats.size()):
 			if not game.passengers.can_sit(i):continue
@@ -518,8 +568,7 @@ func interact(id: String) -> void:
 	elif id=="defend":
 		game.play_sound("impact")
 		held_blade.hide()
-		opponent.rotation.z=PI/2
-		opponent.position.y=.4
+		lay_body(Vector3(opponent.global_position.x,.18,opponent.global_position.z))
 		if branch=="walk":set_phase("mirror","That was my face. Look into the mirror at the back of the room.")
 		else:
 			burial_remaining=180
@@ -543,8 +592,12 @@ func interact(id: String) -> void:
 			for part in mouth_parts:part.hide()
 		else:nose.hide()
 		if mirror_count<3:game.set_objective("Something is missing. Look again.  "+str(mirror_count)+" of 3")
-		else:set_phase("escape","There is no face left. Leave the house and follow Forestry Way.")
-	elif id=="escape":transition("loop")
+		else:
+			set_phase("escape","There is no face left. Leave the house and follow Forestry Way.")
+			events.blood_steps=true
+			events.print_origin=game.player.global_position
+			save_at("escape")
+	elif id=="escape":events.start_trail()
 	elif id=="shovel":
 		shovel=true
 		game.set_objective("E near the body to drag it. Take it through the back door to the lantern.")
@@ -553,10 +606,11 @@ func interact(id: String) -> void:
 		game.player.movement_scale=.65 if dragging else 1.0
 		game.set_objective("Drag the body to the lantern behind the house. E at the grave to bury it." if dragging else "The body is on the ground.")
 	elif id=="grave":
-		if not dragging or opponent.global_position.distance_to(HOUSE+Vector3(2.2,.4,-9))>3.5:
+		if not grave_ready():
 			game.say("Bring the body here first.",3,true)
 			return
 		dragging=false
+		lay_body(HOUSE+Vector3(2.2,.18,-9))
 		game.player.movement_scale=1
 		game.player.enabled=false
 		set_phase("burying","Cover the grave.")
@@ -583,9 +637,13 @@ func update(delta: float) -> void:
 		trail_audio.stop()
 		look_back_armed=false
 		look_back_time=0
-	district.forestry_marker.visible=phase=="escape"
+	district.forestry_marker.visible=phase in ["escape","forestry_walk"]
+	arrival_prints.visible=town_entered and branch=="bus"
+	town_horror.update()
 	if phase in ["dead","ending"]:return
 	state_time+=delta
+	events.update(delta)
+	if phase in ["backstab","forestry_walk","forestry_fall","waking"]:return
 	mirror_wait=maxf(0,mirror_wait-delta)
 	status.text=""
 	if phase=="disembark":
@@ -674,9 +732,10 @@ func update(delta: float) -> void:
 			fail("It woke before the grave was closed.")
 			return
 		if dragging:
-			var ahead: Vector3=-game.player.camera.global_basis.z
-			ahead.y=0
-			opponent.global_position=game.player.global_position+ahead.normalized()*1.1+Vector3(0,.3,0)
+			var target: Vector3=game.player.global_position+game.player.global_basis.z*1.35
+			target.y=.18
+			lay_body(body_center().move_toward(target,delta*4.5))
+		if phase=="burying":opponent.position.y=.18-state_time*.12
 		if phase=="burying" and state_time>=8:
 			opponent.hide()
 			game.player.enabled=true
@@ -696,6 +755,8 @@ func update(delta: float) -> void:
 
 func start_walking() -> void:
 	branch="walk"
+	pursuit_distance=0
+	sound_clock=0
 	pursuit_grace=4
 	town.show()
 	set_phase("walk","Follow the golden path into Loomesville.")
@@ -762,10 +823,15 @@ func pursuit(delta: float, goal: Vector3) -> void:
 			trail_audio.stop()
 			update_jumpscare()
 			return
-	var distance := lerpf(5.5,2.15,clampf(state_time/35.0,0,1)) if phase=="walk" else 7.0
+	if game.player.walking_now:pursuit_distance+=Vector2(game.player.velocity.x,game.player.velocity.z).length()*delta
+	var distance := lerpf(16.0,2.15,clampf(pursuit_distance/50.0,0,1)) if phase=="walk" else 7.0
 	pursuer.position=game.player.global_position-ahead*distance+ahead.cross(Vector3.UP)*sin(state_time*.7)*.4
 	trail_audio.volume_db=-2.5 if phase=="walk" else -7.0
 	trail_audio.unit_size=7 if phase=="walk" else 5
+	if not game.player.walking_now:
+		trail_audio.stop()
+		sound_clock=0
+		return
 	sound_clock-=delta
 	if sound_clock<=0:
 		trail_audio.play()
@@ -829,8 +895,10 @@ func place_town(keep_position: bool=false) -> void:
 	game.engine.stop()
 	trail_audio.stop()
 	game.player.movement_scale=1
-	if not keep_position:place_player(Vector3(120,.15,-739),HOUSE+Vector3(0,1,5))
-	set_phase("town","Follow the footprints to house 17.")
+	if not keep_position:place_player(Vector3(120,.15,-725) if branch=="bus" else Vector3(120,.15,-739),HOUSE+Vector3(0,1,5))
+	set_phase("town","Follow the footprints to house 17." if branch=="bus" else "Go home. House 17 is at the end of the street.")
+	arrival_prints.visible=branch=="bus"
+	town_horror.update()
 	save_at("town")
 
 func place_loop() -> void:
@@ -858,6 +926,8 @@ func document_closed(kind: String) -> void:
 	elif kind=="newspaper" and phase=="dawn":complete("THE MORNING EDITION","The newspaper names you as the suspect.\nYou remember the ride.\nYou cannot remember lighting the match.")
 
 func fail(reason: String) -> void:
+	events.blur.hide()
+	events.own_body.hide()
 	game.transition_shade.hide()
 	game.transition_shade.color=Color(0,0,0,0)
 	trail_audio.stop()
@@ -872,7 +942,7 @@ func fail(reason: String) -> void:
 	copy.custom_minimum_size.x=360
 	copy.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	game.menu_box.add_child(copy)
-	game.menu_box.add_child(game.button("RETRY CHECKPOINT",game.continue_game))
+	game.menu_box.add_child(game.button("TRY AGAIN",game.continue_game))
 	game.menu_box.add_child(game.button("MAIN MENU",game.return_to_title))
 	game.menu_box.add_child(game.button("EXIT TO WINDOWS",game.quit_cleanly))
 	game.focus_first()
@@ -891,3 +961,16 @@ func complete(title: String, copy: String) -> void:
 	game.menu_box.add_child(game.button("MAIN MENU",game.return_to_title))
 	game.menu_box.add_child(game.button("EXIT TO WINDOWS",game.quit_cleanly))
 	game.focus_first()
+
+func body_center() -> Vector3:
+	return opponent.to_global(Vector3(0,1.0,0))
+
+func lay_body(center: Vector3) -> void:
+	opponent.rotation=Vector3(-PI/2,0,0)
+	opponent.global_position=center-opponent.global_basis*Vector3(0,1.0,0)
+	spots.body.local=Vector3(0,1.0,0)
+
+func grave_ready() -> bool:
+	if not shovel:return false
+	var center := body_center()
+	return Vector2(center.x-HOUSE.x-2.2,center.z-HOUSE.z+9).length()<2.8

@@ -91,6 +91,7 @@ func reset(restored: int = 0, seed_value: int = 4707, stop: int = 0) -> void:
 		actor.node.hide()
 		actor.standing.show()
 		actor.seated.hide()
+		preload("res://scripts/face_loss.gd").restore(actor.standing)
 		for part in actor.standing.find_children("*","MeshInstance3D",true,false):
 			part.show()
 			part.scale=Vector3.ONE
@@ -239,10 +240,8 @@ func advance_exit(index: int, delta: float, camera: Camera3D) -> void:
 			actor.state="exit_door"
 			actor.path=[Vector3(1.45,.78,-3.35),Vector3(3.6,.08,-3)]
 	elif actor.state=="erasing":
-		# Features sink into the head over a second, then become bare skin.
-		for part in actor.features:part.scale=Vector3.ONE*maxf(.001,1-actor.time/1.2)
-		if actor.time>=1.2:
-			for part in actor.features:part.scale=Vector3.ONE
+		preload("res://scripts/face_loss.gd").update(actor.features,actor.time)
+		if actor.time>=preload("res://scripts/face_loss.gd").DURATION:
 			make_faceless(index)
 	elif actor.state in ["exit_walk","exit_door","exit_shelter"]:
 		if actor.path.is_empty():
@@ -253,9 +252,7 @@ func advance_exit(index: int, delta: float, camera: Camera3D) -> void:
 				actor.path=[shelter_point(index)]
 			else:
 				actor.state="erasing"
-				actor.features=[]
-				for part in actor.standing.find_children("*","MeshInstance3D",true,false):
-					if facial(String(part.name).to_lower()):actor.features.append(part)
+				actor.features=preload("res://scripts/face_loss.gd").prepare(actor.standing)
 				node.look_at(Vector3(game.bus.global_position.x,node.global_position.y,game.bus.global_position.z))
 			actor.time=0
 			for limb in actor.limbs:limb.rotation.x=0

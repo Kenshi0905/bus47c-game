@@ -8,6 +8,8 @@ var normal_fov := 76.0
 var zooming := false
 var movement_scale := 1.0
 var collider: CollisionShape3D
+var walking_now := false
+var travelled_last_frame := 0.0
 signal footstep
 
 func _ready() -> void:
@@ -33,6 +35,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		camera.rotation.x = clampf(camera.rotation.x - event.relative.y * sensitivity * zoom_scale, -1.35, 1.35)
 
 func _physics_process(delta: float) -> void:
+	walking_now=false
+	travelled_last_frame=0
 	if not enabled: return
 	zooming=Input.is_action_pressed("zoom")
 	camera.fov=lerpf(camera.fov,normal_fov*(.56 if zooming else 1.0),1-exp(-delta*12))
@@ -51,6 +55,8 @@ func _physics_process(delta: float) -> void:
 	var before := position
 	move_and_slide()
 	var travelled := Vector2(position.x-before.x,position.z-before.z).length()
+	travelled_last_frame=travelled
+	walking_now=input.length()>.1 and travelled>.001 and is_on_floor()
 	if input.length() > 0.1 and is_on_floor() and travelled > .001:
 		step_distance += travelled
 		if step_distance > 1.15:
