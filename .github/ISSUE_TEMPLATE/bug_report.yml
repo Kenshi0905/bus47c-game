@@ -1,0 +1,61 @@
+name: Report a bug
+description: Help reproduce a gameplay, visual, audio or save problem.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Game version
+      placeholder: "0.9.0-beta.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: route
+    attributes:
+      label: Where did it happen?
+      options:
+        - Bus journey
+        - Breakdown and repair search
+        - Golden path
+        - Loomesville reached by bus
+        - Loomesville reached on foot
+        - House 17
+        - Forestry Way
+        - Menus or another location
+    validations:
+      required: true
+  - type: dropdown
+    id: start
+    attributes:
+      label: How did you start?
+      options:
+        - New Journey
+        - Continue Journey
+        - Retry checkpoint
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the stop or location and what you did immediately before the problem.
+      placeholder: "1. Start at...\n2. Walk to...\n3. Press..."
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What happened and what should have happened?
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Windows version and graphics hardware
+      placeholder: "Windows 11, AMD Radeon or NVIDIA model if known"
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or additional details
+      description: Attach a screenshot if it helps. Mark story spoilers in your description.

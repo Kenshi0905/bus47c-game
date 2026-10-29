@@ -1,0 +1,31 @@
+name: Suggest an idea
+description: Propose a gameplay, atmosphere, accessibility or lore improvement.
+title: "[Idea] "
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Story and lore
+        - Gameplay
+        - Visuals and atmosphere
+        - Audio
+        - Controls and accessibility
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Describe the idea
+      description: Explain what the player would experience. Mark any ending spoilers.
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: What would it improve?
+    validations:
+      required: true

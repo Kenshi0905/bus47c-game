@@ -1,0 +1,10 @@
+changelog:
+  categories:
+    - title: Fixes
+      labels: [bug]
+    - title: Gameplay and atmosphere
+      labels: [enhancement]
+    - title: Documentation
+      labels: [documentation]
+    - title: Other changes
+      labels: ["*"]
