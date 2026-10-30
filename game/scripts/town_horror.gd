@@ -23,8 +23,12 @@ func setup(g,a) -> void:
 		var at := Vector3(120+side*(2.1+float(i%3)*.55),.18,-735-float(i/2)*3.5)
 		corpse(at,i,float(i)*1.7)
 	# An off-aisle mound leaves the street and shop doors physically accessible.
-	for i in range(7):corpse(Vector3(128.4+sin(i*3)*.8,.18+float(i/3)*.28,-752+cos(i*2)*.7),i,float(i)*.9)
-	pool(bodies,Vector3(128.4,.07,-752),Vector2(2.8,2.5))
+	# Four crossed layers. Body origins are at their hips rather than their feet.
+	for layer in range(4):
+		for row in range(3 if layer<2 else 2):
+			var at := Vector3(128.4+(row-1)*.49,.19+layer*.24,-752+sin(row*2+layer)*.2)
+			corpse(at,20+layer*3+row,(PI/2 if layer%2 else 0)+sin(row*3+layer)*.16,true)
+	pool(bodies,Vector3(128.4,.07,-752),Vector2(1.7,1.55))
 	for id in after.district.shops:
 		var shop: Node3D=after.district.shops[id]
 		for i in range(5):
@@ -105,7 +109,7 @@ func pool(parent: Node3D, at: Vector3, size: Vector2) -> void:
 	parent.add_child(node)
 	node.position=at
 
-func corpse(at: Vector3, index: int, yaw: float) -> void:
+func corpse(at: Vector3, index: int, yaw: float, piled: bool=false) -> void:
 	var root := Node3D.new()
 	bodies.add_child(root)
 	root.position=at
@@ -114,6 +118,13 @@ func corpse(at: Vector3, index: int, yaw: float) -> void:
 	var model: Node3D=load("res://assets/characters/"+["01_grinning_clerk","03_long_neck_worker","04_crooked_passenger"][index%3]+".gltf").instantiate()
 	root.add_child(model)
 	model.rotation.x=-PI/2
+	if piled:
+		model.position.z=.9
+		model.rotation.z=sin(index*4)*.12
+		var limbs: Array[Node3D]=game.passengers.rig_limbs(model)
+		for i in range(limbs.size()):
+			limbs[i].rotation.x=sin(index*2+i)*(.22 if i%2==0 else .55)
+			limbs[i].rotation.z=sin(index+i)*.3
 	for part in model.find_children("*","MeshInstance3D",true,false):
 		var key := String(part.name).to_lower()
 		if "shirt" in key or "torso" in key or "sleeve" in key:part.material_override=game.mat(COLORS[index%4])
@@ -124,7 +135,7 @@ func corpse(at: Vector3, index: int, yaw: float) -> void:
 	# Clothing and personal effects hint at their lives without naming the dead.
 	if index%4==0:game.block(root,Vector3(.32,.09,-.8),Vector3(.16,.03,.23),"b19c72")
 	elif index%4==1:game.block(root,Vector3(.32,.1,-1.1),Vector3(.08,.04,.12),"a4a298")
-	pool(bodies,Vector3(at.x,.067,at.z-1),Vector2(.8,1.3))
+	if not piled:pool(bodies,Vector3(at.x,.067,at.z-1),Vector2(.55,1.05))
 
 func inspect(id: String) -> void:
 	if id not in resident_spots:return

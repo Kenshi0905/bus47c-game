@@ -78,6 +78,7 @@ var modal_box: VBoxContainer
 var ambience: AudioStreamPlayer
 var engine: AudioStreamPlayer
 var drone: AudioStreamPlayer
+var speech: AudioStreamPlayer
 var sfx: AudioStreamPlayer
 var footsteps: AudioStreamPlayer
 var menu_ambience: AudioStreamPlayer
@@ -119,6 +120,8 @@ func _ready() -> void:
 	if "--checks11" in OS.get_cmdline_user_args():call_deferred("encounter_test")
 	if "--capture11" in OS.get_cmdline_user_args():call_deferred("encounter_capture")
 	if "--capture12" in OS.get_cmdline_user_args():call_deferred("surface_capture")
+	if "--capture13" in OS.get_cmdline_user_args():call_deferred("journey_capture")
+	if "--checks13" in OS.get_cmdline_user_args():call_deferred("journey_test")
 
 func _setup_inputs() -> void:
 	var keys := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "sprint": KEY_SHIFT, "interact": KEY_E, "pause_game": KEY_ESCAPE, "stand": KEY_SPACE, "notes": KEY_TAB}
@@ -245,7 +248,8 @@ func _build_world() -> void:
 	roadside_stop(-413,"PINE CROSSING")
 	roadside_stop(-553,"ST BRIDE'S")
 	roadside_stop(Route.TERMINUS_Z-3,"LOOMESVILLE")
-	deer=load("res://assets/deer.gltf").instantiate()
+	deer=preload("res://scripts/deer_model.gd").new()
+	deer.build(self)
 	add_child(deer)
 	deer.position=Route.point(.3,.33,-685)
 	deer.rotation.z=PI/2
@@ -396,6 +400,7 @@ func _build_audio() -> void:
 	engine = audio("engine",-19,true)
 	drone = audio("drone",-24,true)
 	sfx = audio("door",-9,false)
+	speech = audio("firewatcher_intro",-4,false)
 	footsteps = audio("step",-14,false)
 	menu_ambience = audio("drone",-31,true)
 
@@ -409,6 +414,10 @@ func audio(file: String, volume: float, looped: bool) -> AudioStreamPlayer:
 	a.volume_db = volume
 	add_child(a)
 	return a
+
+func play_voice(file: String) -> void:
+	speech.stream=load("res://assets/audio/"+file+".wav")
+	speech.play()
 
 func play_sound(file: String) -> void:
 	sfx.stream = load("res://assets/audio/"+file+".wav")
@@ -567,7 +576,7 @@ func _build_ui() -> void:
 	footer.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(footer)
 	footer.position = Vector2(66, 666)
-	var version := label("BUS 47C   v0.12.0-beta.1", 14, Color("9d9f94"))
+	var version := label("BUS 47C   v0.13.0-beta.1", 14, Color("9d9f94"))
 	version.add_theme_font_override("font", MENU_FONT)
 	menu_chrome.add_child(version)
 	version.position = Vector2(982, 666)
@@ -707,7 +716,7 @@ func start_game(checkpoint: int, saved_seed: int = -1) -> void:
 	departure_id=""
 	seated_index=-1
 	player.set_seated(false,Vector3.ZERO)
-	var restored: int={Story.Stage.PASSENGER:1,Story.Stage.SECOND_STOP:3,Story.Stage.THIRD_STOP:4,Story.Stage.FOURTH_STOP:5,Story.Stage.DEER:5}.get(checkpoint,0)
+	var restored: int={Story.Stage.PASSENGER:1,Story.Stage.SECOND_STOP:3,Story.Stage.THIRD_STOP:5,Story.Stage.FOURTH_STOP:5,Story.Stage.DEER:5}.get(checkpoint,0)
 	var stop: int={Story.Stage.PASSENGER:1,Story.Stage.SECOND_STOP:2,Story.Stage.THIRD_STOP:3,Story.Stage.FOURTH_STOP:4,Story.Stage.DEER:5}.get(checkpoint,0)
 	passengers.reset(restored,trip_seed,stop)
 	if checkpoint==Story.Stage.DEER:passengers.current_stop=-1
@@ -732,7 +741,8 @@ func start_game(checkpoint: int, saved_seed: int = -1) -> void:
 	resume_game()
 	apply_stage(false)
 	if checkpoint==Story.Stage.STOP and saved_seed<0:
-		say("Another night as Loomesville's firewatcher. Shift is over. Time to get home.",7,true)
+		say("Twelve hours alone in that firewatch tower. Loomesville Forest can find another firewatcher tomorrow. I need to get home.",10,true)
+		play_voice("firewatcher_intro")
 	save_checkpoint()
 
 
@@ -904,9 +914,9 @@ func apply_stage(save: bool = true) -> void:
 		Story.Stage.THIRD_STOP, Story.Stage.FOURTH_STOP:
 			var index: int=story.stop_index()
 			bus.position.z=Story.STOP_Z[index]
-			passengers.request_count(index+1)
+			passengers.request_count(5) # Final arrivals board at Pine Crossing; all leave by St Bride's.
 			next_stop_label.text=Story.STOP_NAMES[index]
-			set_objective(Story.STOP_NAMES[index].capitalize()+". Wait for boarding.")
+			set_objective(Story.STOP_NAMES[index].capitalize()+(". The last passengers are getting off." if index==4 else ". Wait for boarding."))
 			departure_id="auto"
 			play_sound("chime")
 			set_door(true)
@@ -917,7 +927,8 @@ func apply_stage(save: bool = true) -> void:
 			bus.position.z=-680
 			deer.visible=true
 			deer.position=Route.point(.3,.33,-685)
-			deer.rotation.z=PI/2
+			deer.rotation=Vector3(0,-PI/2,PI/2)
+			deer.gait(0,false)
 			engine.stop()
 			play_sound("impact")
 			next_stop_label.text="SERVICE INTERRUPTED"
@@ -931,7 +942,7 @@ func apply_stage(save: bool = true) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if aftermath.active and aftermath.phase in ["dead","ending","epilogue","transit","jumpscare","backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit"]:return
+	if aftermath.active and aftermath.phase in ["dead","ending","epilogue","transit","jumpscare","backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit","bus_choke","mirror_scene"]:return
 	if running and not paused and event.is_action_pressed("notes"):
 		if modal:close_document()
 		else:show_document("journal")
@@ -961,6 +972,7 @@ func _notification(what: int) -> void:
 		show_menu(true)
 
 func _process(delta: float) -> void:
+	speech.stream_paused=paused or not running
 	audio_story.update(delta)
 	if not player.walking_now and footsteps.playing:footsteps.stop()
 	if is_instance_valid(aftermath.events):
@@ -987,7 +999,7 @@ func _process(delta: float) -> void:
 		if caption_time<=0:subtitle_frame.hide()
 	controls_hint.text="SPACE   Stand up     RMB   Zoom     TAB   Notes" if seated_index>=0 else "RMB   Zoom     TAB   Notes"
 	if aftermath.active and aftermath.phase=="closet":controls_hint.text="WASD   Shift position     MOUSE   Look     RMB   Peek"
-	var cinematic: bool=aftermath.active and aftermath.phase in ["backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit","epilogue"]
+	var cinematic: bool=aftermath.active and aftermath.phase in ["backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit","bus_choke","mirror_scene","epilogue"]
 	controls_hint.visible=not cinematic
 	reticle.visible=not cinematic
 	if cinematic:
@@ -1202,8 +1214,11 @@ func smoke_test() -> void:
 	player.position=Vector3(2.4,.4,-3)
 	board_if_inside()
 	assert(player.get_parent()==self)
-	process_departure()
-	assert(door_goal==1 and story.stage==Story.Stage.PASSENGER)
+	assert(aftermath.phase=="bus_choke" and not player.enabled)
+	aftermath.update(6.1)
+	assert(aftermath.phase=="dead" and menu.visible)
+	aftermath.reset()
+	resume_game()
 	player.global_position=bus.to_global(Vector3(.3,.8,-3))
 	board_if_inside()
 	assert(player.get_parent()==bus)
@@ -1235,8 +1250,8 @@ func smoke_test() -> void:
 		assert(story.stage==stage and door_goal==1)
 		set_door(true,true)
 		player.camera.rotation=Vector3.ZERO
-		for frame in range(1200):passengers.update(.05,player.camera,player.position,true)
-		assert(passengers.all_aboard())
+		for frame in range(6000):passengers.update(.05,player.camera,player.position,true)
+		assert(passengers.all_aboard(),"Stop %s states %s" % [passengers.current_stop,passengers.actors.map(func(a):return a.state)])
 		story.elapsed=5
 		process_departure()
 		assert(door_goal==0)
@@ -1267,6 +1282,7 @@ func smoke_test() -> void:
 	assert(await preload("res://tests/narrative_checks.gd").run(self))
 	assert(await preload("res://tests/polish_checks.gd").run(self))
 	assert(await preload("res://tests/encounter_checks.gd").run(self))
+	assert(await preload("res://tests/journey_checks.gd").run(self))
 	print("PASS: six stops, moving deer, slow zoom-only watcher, seats, doors, forest failures/recovery, both routes and both endings")
 	quit_cleanly()
 
@@ -1284,7 +1300,7 @@ func capture_frame(name_text: String) -> void:
 	if folder.is_empty():folder="res://../docs" if OS.has_feature("editor") else "user://captures"
 	folder=ProjectSettings.globalize_path(folder).simplify_path()
 	DirAccess.make_dir_recursive_absolute(folder)
-	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.12.0-beta.1-"+name_text+".png"))
+	get_viewport().get_texture().get_image().save_png(folder.path_join("v0.13.0-beta.1-"+name_text+".png"))
 
 func capture_preview() -> void:
 	get_tree().create_timer(90).timeout.connect(func():get_tree().quit(2))
@@ -1339,6 +1355,9 @@ func board_if_inside() -> void:
 	var local := bus.to_local(player.global_position)
 	if player.get_parent()==bus and local.x>1.65:
 		player.reparent(self,true)
+		if not aftermath.active and story.stage!=Story.Stage.BOARD:
+			aftermath.active=true
+			aftermath.encounters.begin("bus_choke")
 	elif player.get_parent()!=bus and local.x<.65 and local.x>-.2 and local.z>-3.8 and local.z<-2.2 and local.y>.65:
 		player.reparent(bus,true)
 		if story.stage==Story.Stage.BOARD and story.interact("door"):apply_stage()
@@ -1400,6 +1419,7 @@ func _physics_process(delta: float) -> void:
 	if not at_stop() and door_goal==1 and player_aboard() and not doorway_occupied():set_door(false)
 	update_door(delta)
 	board_if_inside()
+	if aftermath.active:return
 	process_departure()
 	update_watcher(delta)
 	var old_z := bus.position.z
@@ -1577,6 +1597,7 @@ func update_title_scene(delta: float) -> void:
 	menu_camera.look_at(Vector3(3.2,2.05,-1))
 
 func return_to_title() -> void:
+	speech.stop()
 	save_checkpoint()
 	aftermath.reset()
 	running=false
@@ -1711,6 +1732,7 @@ func update_deer() -> void:
 	var end: float=Story.DURATIONS[Story.Stage.FINAL_RIDE]
 	deer.visible=time>=end-5
 	if not deer.visible:return
+	deer.gait(time,true)
 	deer.rotation=Vector3(0,-PI/2,0)
 	deer.position=Route.point(lerpf(-10,.3,smoothstep(end-5,end-.6,time)),.07+absf(sin(time*14))*.06,-685)
 
@@ -1721,7 +1743,7 @@ func afternarrative_visibility() -> void:
 		aftermath.events.arrow_copy.hide()
 
 func test_run() -> bool:
-	for flag in ["--smoke","--capture","--checks09","--capture09","--checks10","--capture10","--checks11","--capture11","--capture12"]:
+	for flag in ["--smoke","--capture","--checks09","--capture09","--checks10","--capture10","--checks11","--capture11","--capture12","--capture13","--checks13"]:
 		if flag in OS.get_cmdline_user_args():return true
 	return false
 
@@ -1755,3 +1777,12 @@ func encounter_capture() -> void:
 func surface_capture() -> void:
 	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
 	await preload("res://tests/surface_capture.gd").run(self)
+
+func journey_capture() -> void:
+	get_tree().create_timer(120).timeout.connect(func():get_tree().quit(2))
+	await preload("res://tests/journey_capture.gd").run(self)
+
+func journey_test() -> void:
+	get_tree().create_timer(180).timeout.connect(func():get_tree().quit(2))
+	assert(await preload("res://tests/journey_checks.gd").run(self))
+	quit_cleanly()

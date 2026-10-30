@@ -21,8 +21,6 @@ var arrow_copy: Label
 var blur: ColorRect
 var blur_material: ShaderMaterial
 var own_body: Node3D
-var tie_light: OmniLight3D
-var tie_halo: ShaderMaterial
 var start_yaw := 0.0
 var start_pitch := 0.0
 var start_height := 1.57
@@ -51,37 +49,9 @@ func setup(g,a) -> void:
 	blur_material=ShaderMaterial.new()
 	blur_material.shader=preload("res://assets/ui/failing_vision.gdshader")
 	blur.material=blur_material
-	own_body=load("res://assets/characters/06_faceless_watcher.gltf").instantiate()
+	own_body=preload("res://scripts/transformation_body.gd").new()
 	add_child(own_body)
-	own_body.name="GroundedPlayerBody"
-	for part in own_body.find_children("*","MeshInstance3D",true,false):
-		var key := String(part.name).to_lower()
-		if "head" in key or "neck" in key or "ear" in key or "hair" in key or game.passengers.facial(key):part.hide()
-	game.add_tie_glow(own_body)
-	# World-space body: depth-tested and resting on the path, not on the lens.
-	for part in own_body.find_children("*","MeshInstance3D",true,false):
-		var material: StandardMaterial3D=part.get_active_material(0).duplicate()
-		material.no_depth_test=false
-		material.render_priority=0
-		var key := String(part.name)
-		if "torso" in key or "sleeve" in key or "trouser" in key or "pelvis" in key:
-			material.vertex_color_use_as_albedo=false
-			material.albedo_color=Color("262d35")
-		part.material_override=material
-	var halo := MeshInstance3D.new()
-	halo.mesh=QuadMesh.new()
-	halo.mesh.size=Vector2(.26,.64)
-	halo.position=Vector3(0,1.42,-.135)
-	tie_halo=ShaderMaterial.new()
-	tie_halo.shader=preload("res://assets/ui/tie_halo.gdshader")
-	tie_halo.render_priority=5
-	halo.material_override=tie_halo
-	own_body.add_child(halo)
-	tie_light=OmniLight3D.new()
-	own_body.add_child(tie_light)
-	tie_light.position=Vector3(0,1.2,-.4)
-	tie_light.light_color=Color("d81912")
-	tie_light.omni_range=2
+	own_body.setup(game)
 	reset()
 
 func reset() -> void:
@@ -98,8 +68,7 @@ func reset() -> void:
 	if is_instance_valid(arrow):arrow.hide()
 	if is_instance_valid(arrow_copy):arrow_copy.hide()
 	if is_instance_valid(blur):blur.hide()
-	if is_instance_valid(own_body):own_body.hide()
-	if is_instance_valid(tie_halo):tie_halo.set_shader_parameter("strength",0.0)
+	if is_instance_valid(own_body):own_body.reset()
 	game.player.camera.rotation.z=0
 
 func triangle(parent: Node3D, size: float, z: float, color: String) -> void:
@@ -182,9 +151,32 @@ func build_trail() -> void:
 	var root := Node3D.new()
 	after.town.add_child(root)
 	root.name="WalkableForestryWay"
+	var continuous := PATH.duplicate()
+	continuous.append_array([Vector3(61,0,-853),Vector3(51,0,-875),Vector3(56,0,-906)])
+	preload("res://scripts/path_surface.gd").build(root,continuous,2.1,game.mat("4e4938"))
+	for i in range(continuous.size()-1):
+		for side in [-1,1]:
+			var edge: Vector3=(continuous[i+1]-continuous[i]).normalized().cross(Vector3.UP)*1.4*side
+			for t in [.2,.7]:
+				var stone: MeshInstance3D=game.block(root,continuous[i].lerp(continuous[i+1],t)+edge+Vector3(0,.09,0),Vector3(.3,.18,.35),"414a40")
+				stone.rotation.y=i*1.8
 	for i in range(PATH.size()-1):
-		after.slab(root,PATH[i],PATH[i+1],2.1,"4e4938")
 		for t in [.25,.7]:after.lantern(root,PATH[i].lerp(PATH[i+1],t)+Vector3(1.5,0,0))
+	# A forgotten forestry checkpoint and a shallow culvert give the trail a history.
+	var shelter := Node3D.new()
+	root.add_child(shelter)
+	shelter.position=Vector3(114,0,-793)
+	for x in [-1.1,1.1]:game.block(shelter,Vector3(x,1.2,0),Vector3(.12,2.4,.12),"514d38")
+	game.block(shelter,Vector3(0,2.45,0),Vector3(2.8,.12,1.5),"333b32")
+	game.block(shelter,Vector3(0,.55,0),Vector3(2.1,.12,.55),"63573e")
+	game.block(shelter,Vector3(0,1.65,-.08),Vector3(1.7,.65,.09),"473f31")
+	game.text3(shelter,"FIREWATCH SECTOR 17",Vector3(0,1.65,.0),25).pixel_size=.003
+	game.block(shelter,Vector3(.6,.72,0),Vector3(.28,.23,.18),"42473c")
+	game.block(shelter,Vector3(.65,1.05,0),Vector3(.015,.5,.015),"777b64")
+	for side in [-1,1]:
+		for i in range(5):
+			game.block(root,Vector3(107+side*1.7, .45,-808-i),Vector3(.1,.9,.1),"5d5140")
+		game.block(root,Vector3(107+side*1.7,.8,-810),Vector3(.08,.08,4.4),"5d5140")
 	var tree_mesh: ArrayMesh=game.forest.pine_mesh()
 	for i in range(90):
 		var t := float(i%45)/44
@@ -233,10 +225,9 @@ func start_fall(kind: String) -> void:
 	else:
 		fall_origin=game.player.global_position
 		var forward := Basis(Vector3.UP,start_yaw)*Vector3.FORWARD
-		own_body.global_basis=Basis(Vector3.UP,start_yaw)*Basis(Vector3.RIGHT,PI/2)
-		own_body.global_position=fall_origin+forward*1.93
-		own_body.global_position.y=.24
-		own_body.show()
+		var landing: Vector3=fall_origin+forward*1.70
+		landing.y=.72
+		own_body.begin(landing,start_yaw)
 
 func update(delta: float) -> void:
 	observe_hazard()
@@ -279,14 +270,11 @@ func update_cutscene() -> void:
 			blur.hide()
 			after.fail("You strayed too far from the bus.")
 	elif after.phase=="forestry_fall":
-		camera.position.y=lerpf(start_height,.43,smoothstep(.5,2.4,t))
-		camera.rotation=Vector3(lerpf(start_pitch,-.24,smoothstep(.3,3,t)),0,.07*sin(minf(t,3)*.45))
+		camera.global_position=(fall_origin+Vector3.UP*start_height).lerp(own_body.torso.to_global(Vector3(0,.24,-.32)),smoothstep(.15,1.6,t))
+		camera.rotation=Vector3(lerpf(start_pitch,-.44,smoothstep(.3,2,t)),0,.07*sin(minf(t,3)*.45))
 		game.player.rotation.y=start_yaw
-		tie_light.light_energy=smoothstep(2,5,t)*(1.1+sin(t*4)*.25)
-		tie_halo.set_shader_parameter("strength",smoothstep(2,5,t)*(.6+sin(t*4)*.08))
-		var tie: MeshInstance3D=own_body.find_child("red_tie*",true,false)
-		tie.material_override.emission_energy_multiplier=smoothstep(2,5,t)*(1.25+sin(t*4)*.2)
-		set_blur(1.5+sin(t*1.7)*.7+smoothstep(5,9,t)*5,smoothstep(8,10,t),0)
+		own_body.animate(t)
+		set_blur(.45+sin(t*1.7)*.2+smoothstep(8,11,t)*5,smoothstep(10,12,t),0)
 		if t>=12:
 			own_body.hide()
 			after.place_loop()

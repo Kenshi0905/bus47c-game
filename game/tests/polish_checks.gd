@@ -75,7 +75,7 @@ static func run(g) -> bool:
 	assert(a.phase=="brewing" and a.presentation.panel.visible and not a.coffee)
 	g.request_interaction("newspaper")
 	assert(not g.modal,"Paper is available after the coffee action finishes")
-	a.update(2.1)
+	a.update(10.1)
 	g.request_interaction("newspaper")
 	await g.get_tree().process_frame
 	assert(g.modal and g.modal_kind=="newspaper")

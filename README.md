@@ -10,15 +10,15 @@ A short, first-person horror game about a firewatcher's journey to Loomesville. 
 
 ## Play
 
-1. Download **Bus47C-Beta-0.12.0-Windows.zip** from the release's **Assets** section.
+1. Download **Bus47C-Beta-0.13.0-Windows.zip** from the release's **Assets** section.
 2. Extract the entire ZIP. Keep **Bus47C.exe** and **Bus47C.pck** together.
 3. Run **Bus47C.exe** and choose **New Journey**. Headphones recommended.
 
 No Godot installation needed. The playable build targets **Windows x86_64 with OpenGL 3.3**. Other graphical platforms have not been validated.
 
-**0.12.0 Beta 1** includes both story routes, four explorable shops and House 17. The new visual pass adds muted film colour, soft light bloom, worn bus materials, rain-marked glass and damp roads. Warm interiors contrast with the cold forest, and daylight retains the filter. More lore and polish are still planned. Contains graphic stylized violence, blood and jumpscares.
+**0.13.0 Beta 1** refines both story routes with rebuilt roads and house floors, a new stag, a gradual mirror scene, a physical transformation, dangerous wardrobe peeking and visible coffee preparation. The gloomy visual filter remains enabled by default. More lore and polish are still planned. Contains graphic stylized violence, blood and jumpscares.
 
-The previous [0.11.0 Beta 1 release](https://github.com/Kenshi0905/bus47c-game/releases/tag/v0.11.0-beta.1) remains available for rollback. See the [changelog](CHANGELOG.md) for the full history.
+The previous [0.12.0 Beta 1 release](https://github.com/Kenshi0905/bus47c-game/releases/tag/v0.12.0-beta.1) remains available for rollback. See the [changelog](CHANGELOG.md) for the full history.
 
 ## Controls
 

@@ -1,5 +1,5 @@
 BUS 47C
-Windows beta 0.12.0-beta.1
+Windows beta 0.13.0-beta.1
 
 PLAY
 Extract the whole ZIP into a folder, then double-click Bus47C.exe.
@@ -7,14 +7,17 @@ Keep Bus47C.pck beside Bus47C.exe. No Godot installation is needed.
 Choose New Journey to experience the complete current sequence.
 
 NEW IN THIS BETA
-The gameplay filter is enabled by default across night and morning scenes.
-Muted colours, cool shadows, film grain and soft bloom retain a retro look.
-Bus paint, upholstery and ceilings have procedural wear; glass carries faint
-rain marks with a clearer windshield so the road remains visible.
-Damp roads catch the moving headlights. Warm cabin and house lights leave
-deeper shadows between fixtures. The pause menu layout is unchanged.
-The previous body, wardrobe, forest and ending fixes are included.
-You can switch the picture filter off in Settings.
+All passengers leave before Loomesville. Leaving at a wrong stop is fatal.
+The stag has antlers, a long muzzle, jointed legs and cloven hooves.
+Town roads, pavements and House 17 floors have cleaner joins.
+Approaching the mirror begins a gradual face deterioration scene.
+Forestry Way has landmarks and continues into the forest beyond the fall.
+The physical collapse shows the uniform darkening and the red tie appearing.
+Wardrobe peeking is wider. A prolonged peek can draw unwanted attention.
+Repairing, burial and coffee use a compact pixel bar without a boxed panel.
+Coffee preparation has visible utensils, pouring, stirring and steam.
+The opening and hunger lines currently use placeholder synthetic speech.
+The gloomy picture filter and existing pause menu are retained.
 
 CONTROLS
 WASD: walk or shift position while hiding

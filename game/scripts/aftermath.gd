@@ -59,6 +59,8 @@ var attack_ready_time := 0.0
 var look_back_armed := false
 var look_back_origin := Vector3.ZERO
 var scare_limbs: Array[Node3D]=[]
+var mirror_sequence: Node
+var coffee_station: Node3D
 var presentation: Node
 const CLOSET_SECONDS := 90.0
 
@@ -109,6 +111,9 @@ func setup(owner_game) -> void:
 	encounters=preload("res://scripts/night_encounters.gd").new()
 	add_child(encounters)
 	encounters.setup(game,self)
+	mirror_sequence=preload("res://scripts/mirror_sequence.gd").new()
+	add_child(mirror_sequence)
+	mirror_sequence.setup(game,self)
 	reset()
 
 func hotspot(id: String, parent: Node3D, local: Vector3, title: String, radius: float=2.4) -> void:
@@ -135,10 +140,12 @@ func build_forest() -> void:
 	lantern(props,signpost.position+Vector3(1,0,.5))
 	hotspot("shortcut",signpost,Vector3(0,1.5,0),"Take the walking path",3.5)
 	hotspot("take_bus",game.bus,Vector3(.3,1.65,-3),"Continue to Loomesville by bus",2.7)
-	for i in range(Route.WALK_PATH.size()-1):
-		var a: Vector3=Route.WALK_PATH[i]
-		var b: Vector3=Route.WALK_PATH[i+1]
-		slab(props,a,b,2.4,"4e4936")
+	var visible_path := Route.WALK_PATH.slice(0,4)
+	visible_path.append(Vector3(113.5,0,-724))
+	preload("res://scripts/path_surface.gd").build(props,visible_path,2.4,game.mat("4e4936"))
+	for i in range(visible_path.size()-1):
+		var a: Vector3=visible_path[i]
+		var b: Vector3=visible_path[i+1]
 		var side: Vector3=(b-a).normalized().cross(Vector3.UP)*1.8
 		for t in [.2,.65]:lantern(props,a.lerp(b,t)+side)
 	for i in range(3):
@@ -180,9 +187,13 @@ func build_forest() -> void:
 	repairs.setup(game,self)
 
 func build_town() -> void:
-	game.block(town,Vector3(120,.015,-754),Vector3(9,.03,76),"303432")
+	# Streets stop at the front garden. No asphalt or road marks beneath the house.
+	for segment in [[-743.5,49.0],[-704.0,14.0]]:
+		game.block(town,Vector3(120,.018,segment[0]),Vector3(9,.036,segment[1]),"303432")
+	game.block(town,Vector3(120,.028,-768.5),Vector3(2.2,.056,1.0),"565b51",true)
 	for x in [114.5,125.5]:
-		game.block(town,Vector3(x,.025,-756.85),Vector3(2,.05,70.3),"565b51",true)
+		for segment in [[-744.75,45.5],[-703.25,11.5]]:
+			game.block(town,Vector3(x,.03,segment[0]),Vector3(2,.06,segment[1]),"565b51",true)
 		for z in [-735,-754,-774]:lantern(town,Vector3(x,0,z))
 	arrival_prints=Node3D.new()
 	town.add_child(arrival_prints)
@@ -229,8 +240,6 @@ func build_town() -> void:
 	game.block(ground_knife,Vector3(0,0,.065),Vector3(.16,.06,.035),"8d998c")
 	game.light(home,Vector3(-1.6,1.9,4),Color("c7b383"),.6,3.2)
 	hotspot("knife",home,Vector3(-1.6,.98,3.9),"Pick up the knife",3.2)
-	game.block(home,Vector3(0,.55,-1.5),Vector3(.8,.15,.8),"60533f",true)
-	game.block(home,Vector3(0,1.03,-1.85),Vector3(.8,1,.12),"60533f",true)
 	opponent=Node3D.new()
 	town.add_child(opponent)
 	double_model=load("res://assets/characters/01_grinning_clerk.gltf").instantiate()
@@ -274,27 +283,8 @@ func build_town() -> void:
 	for x in [2.4,4.4]:
 		for z in [2.6,3.4]:game.block(home,Vector3(x,.45,z),Vector3(.12,.9,.12),"4a4739",true)
 	preload("res://scripts/newspaper.gd").world_paper(game,home,Vector3(3.9,1.1,3))
-	var mug := MeshInstance3D.new()
-	var cup := CylinderMesh.new()
-	cup.top_radius=.095
-	cup.bottom_radius=.075
-	cup.height=.23
-	cup.radial_segments=12
-	mug.mesh=cup
-	mug.material_override=game.mat("a7ada0")
-	home.add_child(mug)
-	mug.position=Vector3(2.9,1.15,3)
-	var handle := MeshInstance3D.new()
-	var ring := TorusMesh.new()
-	ring.inner_radius=.047
-	ring.outer_radius=.069
-	ring.rings=12
-	ring.ring_segments=6
-	handle.mesh=ring
-	handle.material_override=game.mat("a7ada0")
-	home.add_child(handle)
-	handle.position=Vector3(2.79,1.15,3)
-	handle.rotation.x=PI/2
+	coffee_station=preload("res://scripts/coffee_station.gd").new()
+	coffee_station.setup(game,home)
 	hotspot("coffee",home,Vector3(2.9,1.2,3),"Make coffee")
 	hotspot("newspaper",home,Vector3(3.9,1.15,3),"Read the newspaper")
 	game.block(home,Vector3(3.4,2.25,5.08),Vector3(.8,.3,.05),"18231e")
@@ -323,11 +313,14 @@ func daylight(enabled: bool) -> void:
 	game.moon_light.light_energy=.8 if enabled else .14
 
 func reset() -> void:
+	if is_instance_valid(mirror_sequence):mirror_sequence.reset()
+	if is_instance_valid(coffee_station):coffee_station.reset()
 	if is_instance_valid(encounters):encounters.reset()
 	if is_instance_valid(corpse_physics):corpse_physics.reset()
 	if is_instance_valid(presentation):presentation.reset()
 	game.player.confined=false
 	game.player.camera.position.z=0
+	game.player.camera.position.x=0
 	if is_instance_valid(events):events.reset()
 	if is_instance_valid(town_horror):town_horror.reset()
 	arrival_prints.hide()
@@ -420,6 +413,7 @@ func restore(data: Dictionary) -> void:
 			mirror_revealed=true
 			mirror_count=3
 			mirror_face.show()
+			for feature in mirror_sequence.features:feature.node.hide()
 			for feature in eyes+mouth_parts+[nose]:feature.hide()
 			events.blood_steps=true
 			events.print_origin=game.player.global_position
@@ -450,6 +444,7 @@ func restore(data: Dictionary) -> void:
 func place_player(at: Vector3, look: Vector3) -> void:
 	game.player.confined=false
 	game.player.camera.position.z=0
+	game.player.camera.position.x=0
 	game.passengers.release_player_seat(game.seated_index)
 	game.seated_index=-1
 	game.player.set_seated(false,Vector3.ZERO)
@@ -498,7 +493,7 @@ func allowed() -> Array:
 		"fork":return ["shortcut","take_bus"]+repairs.available()
 		"town":return ["knife","shop_pizza","shop_diner","shop_mart","shop_coffee_shop"]+(town_horror.resident_spots if branch=="bus" else [])
 		"confront":return ["defend"] if knife else ["knife"]
-		"mirror":return ["mirror"] if mirror_wait<=0 else []
+		"mirror":return []
 		"escape":return ["escape","shop_pizza","shop_diner","shop_mart","shop_coffee_shop"]
 		"burial":return ["grave","body"] if shovel else ["shovel","body"]
 		"closet_ready":return ["closet"]
@@ -601,28 +596,7 @@ func interact(id: String) -> void:
 			set_phase("burial","Take the shovel. Drag the body to the marked grave behind the house.")
 			game.say("It is still moving. Bury it before it gets up.",5,true)
 			save_at("burial")
-	elif id=="mirror":
-		if not mirror_revealed:
-			mirror_revealed=true
-			mirror_face.show()
-			mirror_wait=1.5
-			game.play_sound("mirror")
-			game.set_objective("My reflection. Look again.")
-			return
-		mirror_count+=1
-		mirror_wait=1.5
-		game.play_sound("mirror")
-		if mirror_count==1:
-			for eye in eyes:eye.hide()
-		elif mirror_count==2:
-			for part in mouth_parts:part.hide()
-		else:nose.hide()
-		if mirror_count<3:game.set_objective("Something is missing. Look again.  "+str(mirror_count)+" of 3")
-		else:
-			set_phase("escape","There is no face left. Leave the house and follow Forestry Way.")
-			events.blood_steps=true
-			events.print_origin=game.player.global_position
-			save_at("escape")
+	elif id=="mirror":mirror_sequence.start()
 	elif id=="escape":events.start_trail()
 	elif id=="shovel":
 		shovel=true
@@ -652,8 +626,10 @@ func interact(id: String) -> void:
 		set_phase("closet","Stay inside. Wait for daylight and birdsong.")
 	elif id=="coffee":
 		game.player.enabled=false
-		set_phase("brewing","Make a cup of coffee.")
-		game.play_sound("pour")
+		coffee_station.reset()
+		place_player(HOUSE+Vector3(2.9,.1,4.05),HOUSE+Vector3(2.9,1.15,3))
+		game.player.enabled=false
+		set_phase("brewing","")
 	elif id in ["newspaper","ticket"]:game.show_document(id)
 
 func update(delta: float) -> void:
@@ -672,6 +648,8 @@ func update(delta: float) -> void:
 	town_horror.update()
 	if phase in ["dead","ending"]:return
 	state_time+=delta
+	mirror_sequence.update()
+	if phase=="mirror_scene":return
 	presentation.update()
 	if phase in ["epilogue","ending"]:return
 	encounters.update(delta)
@@ -691,6 +669,8 @@ func update(delta: float) -> void:
 		if state_time>=1.8:
 			set_phase("forage","")
 			game.set_objective("Find something to eat.",true)
+			game.say("(under my breath) Twelve-hour shifts... missed another meal.",4.5,true)
+			game.play_voice("hunger_mumble")
 	elif phase=="forage":
 		hunger=maxf(0,hunger-delta*.12)
 		status.text="FRUIT   "+str(fruit_taken.size())+" of 3"
@@ -777,7 +757,7 @@ func update(delta: float) -> void:
 		var remaining := maxi(0,ceili(CLOSET_SECONDS-state_time))
 		status.text="DAYLIGHT   E TO STEP OUT" if encounters.daylight_ready else "DAYLIGHT IN   %d:%02d" % [remaining/60,remaining%60]
 		for i in range(wardrobe_doors.size()):
-			var open := (-.30 if i==0 else .30) if Input.is_action_pressed("zoom") else 0.0
+			var open := (-.78 if i==0 else .78) if Input.is_action_pressed("zoom") else 0.0
 			wardrobe_doors[i].rotation.y=lerp_angle(wardrobe_doors[i].rotation.y,open,1-exp(-delta*5))
 		var times := [12.0,32.0,58.0]
 		if closet_beat<3 and state_time>=times[closet_beat]:
@@ -790,7 +770,8 @@ func update(delta: float) -> void:
 			game.play_sound("birds")
 			game.set_objective("Morning. Press E to step out of the wardrobe.",true)
 	elif phase=="brewing":
-		if state_time>=4:
+		coffee_station.update(state_time)
+		if state_time>=12:
 			coffee=true
 			game.player.enabled=true
 			set_phase("dawn","Read the morning newspaper on the counter.")
@@ -809,7 +790,10 @@ func start_walking() -> void:
 func on_walking_path() -> bool:
 	var at := Vector2(game.player.global_position.x,game.player.global_position.z)
 	if at.distance_to(Vector2(Route.FOREST_FORK.x,Route.FOREST_FORK.z))<5:return false
-	for i in range(Route.WALK_PATH.size()-1):
+	var visible_path := Route.WALK_PATH.slice(0,4)
+	visible_path.append(Vector3(113.5,0,-724))
+	preload("res://scripts/path_surface.gd").build(props,visible_path,2.4,game.mat("4e4936"))
+	for i in range(visible_path.size()-1):
 		var a: Vector3=Route.WALK_PATH[i]
 		var b: Vector3=Route.WALK_PATH[i+1]
 		if Geometry2D.get_closest_point_to_segment(at,Vector2(a.x,a.z),Vector2(b.x,b.z)).distance_to(at)<4.2:return true
@@ -820,7 +804,10 @@ func walking_goal() -> Vector3:
 	var at := Vector2(game.player.global_position.x,game.player.global_position.z)
 	var best := INF
 	var goal: Vector3=Route.WALK_PATH[-1]
-	for i in range(Route.WALK_PATH.size()-1):
+	var visible_path := Route.WALK_PATH.slice(0,4)
+	visible_path.append(Vector3(113.5,0,-724))
+	preload("res://scripts/path_surface.gd").build(props,visible_path,2.4,game.mat("4e4936"))
+	for i in range(visible_path.size()-1):
 		var a: Vector3=Route.WALK_PATH[i]
 		var b: Vector3=Route.WALK_PATH[i+1]
 		var distance := Geometry2D.get_closest_point_to_segment(at,Vector2(a.x,a.z),Vector2(b.x,b.z)).distance_to(at)
@@ -971,9 +958,10 @@ func document_closed(kind: String) -> void:
 		presentation.start_ending(kind)
 
 func controls_locked() -> bool:
-	return active and phase in ["burying","repairing","brewing","epilogue","transit","jumpscare","backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit","dead","ending"]
+	return active and phase in ["burying","repairing","brewing","epilogue","transit","jumpscare","backstab","forestry_fall","waking","closet_attack","forest_hounds","closet_exit","bus_choke","mirror_scene","dead","ending"]
 
 func fail(reason: String) -> void:
+	game.speech.stop()
 	encounters.reset()
 	dragging=false
 	presentation.reset()

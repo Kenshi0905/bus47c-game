@@ -3,7 +3,7 @@ extends Node
 const ACTIONS := {
 	"repairing":[5.0,"REPAIRING THE ENGINE",["Seat the replacement parts","Tighten the housing","Check the ignition"]],
 	"burying":[8.0,"CLOSING THE GRAVE",["Lower the body","Cover with earth","Pack down the soil"]],
-	"brewing":[4.0,"MAKING COFFEE",["Fill the kettle","Wait for the water","Pour a cup"]]
+	"brewing":[12.0,"MAKING COFFEE",["Spoon in the coffee","Boil the water","Pour and stir"]]
 }
 var game
 var after
@@ -26,24 +26,16 @@ func setup(g,a) -> void:
 	after=a
 	panel=PanelContainer.new()
 	game.hud.add_child(panel)
-	panel.position=Vector2(420,445)
-	panel.custom_minimum_size=Vector2(440,100)
-	var style := StyleBoxFlat.new()
-	style.bg_color=Color(.025,.03,.025,.86)
-	style.border_color=Color("a39472")
-	style.border_width_top=1
-	style.content_margin_left=22
-	style.content_margin_right=22
-	style.content_margin_top=16
-	style.content_margin_bottom=16
-	panel.add_theme_stylebox_override("panel",style)
+	panel.position=Vector2(488,540)
+	panel.custom_minimum_size=Vector2(304,22)
+	panel.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation",9)
 	panel.add_child(stack)
 	action_title=game.label("",20)
 	action_step=game.label("",16,Color("bbb8aa"))
-	progress=ProgressBar.new()
-	progress.custom_minimum_size.y=5
+	progress=preload("res://scripts/pixel_progress.gd").new()
+	progress.custom_minimum_size.y=6
 	progress.show_percentage=false
 	progress.max_value=1
 	var fill := StyleBoxFlat.new()
@@ -86,9 +78,14 @@ func update() -> void:
 		var action: Array=ACTIONS[after.phase]
 		var fraction := clampf(after.state_time/float(action[0]),0,1)
 		action_title.text=action[1]
+		action_title.hide()
+		action_step.visible=after.phase=="brewing"
+		action_step.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 		progress.value=fraction
 		var step := mini(2,int(fraction*3))
-		action_step.text="%s   %ds" % [action[2][step],maxi(0,ceili(float(action[0])-after.state_time))]
+		action_step.text=action[2][step]
+		if after.phase=="brewing":
+			action_step.text="Spoon in the coffee" if after.state_time<2.5 else ("Boil the water" if after.state_time<6.5 else ("Pour into the cup" if after.state_time<9.5 else "Stir the coffee"))
 	if after.phase=="epilogue":update_ending()
 
 func start_ending(kind: String) -> void:

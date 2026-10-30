@@ -79,10 +79,10 @@ static func run(g) -> bool:
 	a.update(4)
 	assert(a.events.own_body.get_parent()==a.events,"Fallen body belongs to world, not camera")
 	assert(a.events.own_body.global_position==before and a.events.own_body.scale==Vector3.ONE)
-	assert(a.events.own_body.global_position.y>.15 and a.events.own_body.global_position.y<.4)
+	assert(a.events.own_body.global_position.y>.15 and a.events.own_body.global_position.y<.8)
 	for mesh in a.events.own_body.find_children("*","MeshInstance3D",true,false):
 		if mesh.material_override is StandardMaterial3D:assert(not mesh.material_override.no_depth_test)
-	a.update(8.1)
+	a.update(9.1)
 	a.update(3.1)
 	assert(a.phase=="loop" and g.player.enabled)
 	var blood: StandardMaterial3D=preload("res://scripts/blood_palette.gd").material()

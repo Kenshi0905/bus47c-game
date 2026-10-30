@@ -62,12 +62,14 @@ func cylinder(parent: Node3D, at: Vector3, radius: float, height: float, color: 
 	return node
 
 func street() -> void:
-	box(self,Vector3(120,.018,-715),Vector3(85,.036,8),"343735",false,4)
-	for z in [-709.7,-720.3]:box(self,Vector3(120,.025,z),Vector3(85,.05,2.5),"6a685b",true,3)
-	for z in range(-784,-704,5):
+	box(self,Vector3(105,.018,-715),Vector3(55,.036,8),"343735",false,4)
+	for z in [-709.75,-720.25]:
+		for span in [[96.5,38.0],[128.5,8.0]]:
+			box(self,Vector3(span[0],.03,z),Vector3(span[1],.06,2.5),"6a685b",true,8)
+	for z in range(-765,-704,5):
 		if z< -721 or z> -709:box(self,Vector3(120,.041,z),Vector3(.13,.01,2.4),"a7a08a")
 	for x in [115.65,124.35]:
-		for dx in [-.13,.13]:box(self,Vector3(x+dx,.043,-751),Vector3(.07,.01,61),"9f7b38")
+		for dx in [-.13,.13]:box(self,Vector3(x+dx,.043,-744),Vector3(.07,.01,46),"9f7b38")
 	for z in [-735,-754,-774]:
 		for x in [112.5,127.5]:
 			box(self,Vector3(x,2.5,z),Vector3(.12,5,.12),"343e39",true)

@@ -42,7 +42,7 @@ func _physics_process(delta: float) -> void:
 	if not enabled: return
 	zooming=Input.is_action_pressed("zoom")
 	camera.fov=lerpf(camera.fov,normal_fov*((.88 if confined else .56) if zooming else 1.0),1-exp(-delta*12))
-	camera.position.z=move_toward(camera.position.z,-.19 if confined and zooming else 0.0,delta*.8)
+	camera.position.z=move_toward(camera.position.z,-.36 if confined and zooming else 0.0,delta*.8)
 	camera.position.y = move_toward(camera.position.y, 1.28 if seated else (1.45 if confined else 1.57), delta * 1.8)
 	if seated:
 		velocity = Vector3.ZERO

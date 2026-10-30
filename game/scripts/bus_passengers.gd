@@ -71,7 +71,7 @@ func reset(restored: int = 0, seed_value: int = 4707, stop: int = 0) -> void:
 	owners.fill(-1)
 	var rng := RandomNumberGenerator.new()
 	rng.seed=seed_value
-	schedule.assign([rng.randi_range(2,3),rng.randi_range(3,4),rng.randi_range(3,4),rng.randi_range(4,5),5])
+	schedule.assign([rng.randi_range(2,3),rng.randi_range(3,4),rng.randi_range(3,4),4,4])
 	# Spread the two Quarry arrivals across separate later stops.
 	schedule[2]=7-schedule[1]
 	for i in range(actors.size()):
@@ -394,6 +394,7 @@ func all_aboard() -> bool:
 	for i in range(requested):
 		var actor: Dictionary = actors[i]
 		if actor.state=="faceless":continue
+		if schedule[i]<=current_stop:return false
 		if actor.state == "pending" or actor.node.position.x > 1.1 or actor.node.position.y < .7: return false
 	return true
 

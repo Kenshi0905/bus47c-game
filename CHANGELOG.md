@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.13.0-beta.1
+
+- Wrong-stop exits trigger a finite choking sequence and a working retry screen.
+- Final arrivals board at Pine Crossing. Every passenger leaves by St Bride's.
+- Rebuilt editable stag anatomy with antlers, ears, muzzle, hocks and cloven hooves.
+- Clearer spoken firewatcher introduction and a quiet post-disembark hunger line.
+- Separated roads, paving and indoor floors. Removed the hall's placeholder chair.
+- Added a continuous Forestry Way surface, forestry checkpoint and trail landmarks.
+- Approaching the mirror now plays a gradual face deterioration sequence.
+- Jointed physical fall followed by the uniform changing into the dark suit and red tie.
+- Wider wardrobe peeking, roaming night visitors and sustained-peek detection.
+- Layered body mound with varied limb poses.
+- Compact pixel progress indicators with no boxed background.
+- Coffee tin, hollow cup, hotplate, kettle, spoon, hands, pouring, stirring and steam.
+- Regression coverage for forbidden exits, retries, passenger evacuation, peeking, mirror, ragdoll and coffee.
+
 ## 0.12.0-beta.1
 - Applied a unified gameplay filter at night and dawn: muted film colour, cool shadows, warm highlights, softened exposure, fine grain, vignette and restrained light bloom. The existing Settings toggle remains available. UI stays on its separate readable layer and the Escape menu layout is unchanged.
 - Added editable procedural materials for worn bus paint, olive vinyl, rubber and stained ceiling panels. Subtle rain marks and grime collect on the glass, with a clearer windshield.
